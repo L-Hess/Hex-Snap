@@ -15,7 +15,7 @@ from src.preprocessing import Linearization
 from src.preprocessing import Homography
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = False
+ONLY_ANALYSIS = True
 
 
 # Grab frames and return captured frame
@@ -156,16 +156,16 @@ if __name__ == '__main__':
             ht.loop()
 
     logging.debug('Position files acquired')
-    #
-    # # Option to skip time correction and linearization
-    # key = input('Enter y for time correction and linearization: ')
-    # if key == 'y':
-    #     tcorrect = Timecorrect(__name__, sources=cfg['frame_sources'])
-    #     tcorrect.correction()
-    #     linearization = Linearization(__name__, sources=cfg['frame_sources'])
-    #     linearization.lin()
-    # else:
-    #     pass
+
+    # Option to skip time correction and linearization
+    key = input('Enter y for time correction and linearization: ')
+    if key == 'y':
+        tcorrect = Timecorrect(__name__, sources=cfg['frame_sources'])
+        tcorrect.correction()
+        linearization = Linearization(__name__, sources=cfg['frame_sources'])
+        linearization.lin()
+    else:
+        pass
     #
     # # Option to skip analysis
     # key = input('Enter y for analysis: ')

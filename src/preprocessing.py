@@ -2,6 +2,7 @@ import pkg_resources
 import numpy as np
 import logging
 import cv2
+import os
 
 
 # Euclidean distance
@@ -34,15 +35,24 @@ class Timecorrect:
     def __init__(self, pathname, sources):
 
         # Loading in the position log files as created by the tracker
-        self.data_path_1 = pkg_resources.resource_filename(pathname, '/data/Position_log_files/pos_log_file_0.csv')
-        self.data_path_2 = pkg_resources.resource_filename(pathname, '/output/Position_log_files/pos_log_file_1.csv')
+        self.data_path_1 = pkg_resources.resource_filename(pathname, '/data/interim/Position_log_files/{}/pos_log_file_0.csv'.format(sources[0][57:76]))
+        self.data_path_2 = pkg_resources.resource_filename(pathname, '/data/interim/Position_log_files/{}/pos_log_file_1.csv'.format(sources[0][57:76]))
 
         self.dat_0 = np.genfromtxt(self.data_path_1, delimiter=',', skip_header=False)
         self.dat_1 = np.genfromtxt(self.data_path_2, delimiter=',', skip_header=False)
 
         # Initiation of new time aligned position log files
-        path_0 = pkg_resources.resource_filename(pathname, '/output/Time_corrected_log_files/pos_log_file_tcorr_0.csv')
-        path_1 = pkg_resources.resource_filename(pathname, '/output/Time_corrected_log_files/pos_log_file_tcorr_1.csv')
+        # Create path to csv log file for tracking mouse position and LED-light state
+        path = pkg_resources.resource_filename(pathname, "/data/interim/time_corrected_position_log_files/{}".format(sources[0][57:76]))
+        try:
+            os.mkdir(path)
+        except OSError:
+            print("Creation of the directory %s failed, this path probably already exists" % path)
+
+        path_0 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/'
+                                                           'pos_log_file_tcorr_0.csv'.format(sources[0][57:76]))
+        path_1 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/'
+                                                           'pos_log_file_tcorr_1.csv'.format(sources[0][57:76]))
         self.pos_log_file_0 = open(path_0, 'w')
         self.pos_log_file_1 = open(path_1, 'w')
 
@@ -92,30 +102,34 @@ class Timecorrect:
 
 
 class Linearization:
-    def __init__(self, pathname):
+    def __init__(self, pathname, sources):
 
         # Load in the time aligned log files and corrected node positions
         # Ghost nodes are used for nodes that are off of the video
         # Dwell nodes are used for nodes that are off of the video
-        self.data_path_1 = pkg_resources.resource_filename(pathname, '/output/Time_corrected_log_files/pos_log_file_tcorr_0.csv')
-        self.data_path_2 = pkg_resources.resource_filename(pathname, '/output/Time_corrected_log_files/pos_log_file_tcorr_1.csv')
+        self.data_path_1 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/pos_log_file_tcorr_0.csv'.format(sources[0][57:76]))
+        self.data_path_2 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/pos_log_file_tcorr_1.csv'.format(sources[0][57:76]))
 
         self.dat_0 = np.genfromtxt(self.data_path_1, delimiter=',', skip_header=False)
         self.dat_1 = np.genfromtxt(self.data_path_2, delimiter=',', skip_header=False)
 
-        self.path_0 = pkg_resources.resource_filename(pathname, '/output/Linearized_Position_log_files/pos_log_file_lin_0.csv')
-        self.path_1 = pkg_resources.resource_filename(pathname, '/output/Linearized_Position_log_files/pos_log_file_lin_1.csv')
+        path = pkg_resources.resource_filename(pathname, "/data/interim/linearized_position_log_files/{}".format(sources[0][57:76]))
+        try:
+            os.mkdir(path)
+        except OSError:
+            print("Creation of the directory %s failed, this path probably already exists" % path)
+
+        self.path_0 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_0.csv'.format(sources[0][57:76]))
+        self.path_1 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_1.csv'.format(sources[0][57:76]))
         self.pos_log_file_lin_0 = open(self.path_0, 'w')
         self.pos_log_file_lin_1 = open(self.path_1, 'w')
 
-        self.nodes_top_path = pkg_resources.resource_filename(pathname, '/src/resources/node_pos_top.csv')
-        self.nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/resources/node_pos_bottom.csv')
-        self.ghost_nodes_top_path = pkg_resources.resource_filename(pathname, '/src/resources/ghost_node_top.csv')
-        self.ghost_nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/resources/ghost_node_bottom.csv')
-        self.dwell_nodes_top_path = pkg_resources.resource_filename(pathname, '/src/resources/ghost_node_top.csv')
-        self.dwell_nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/resources/ghost_node_bottom.csv')
-        self.im_0_path = pkg_resources.resource_filename(pathname, '/output/Video_images/im_0.png')
-        self.im_1_path = pkg_resources.resource_filename(pathname, '/output/Video_images/im_1.png')
+        self.nodes_top_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_node_pos_top.csv')
+        self.nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_node_pos_bot.csv')
+        self.ghost_nodes_top_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_ghost_node_pos_top.csv')
+        self.ghost_nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_ghost_node_pos_bot.csv')
+        self.dwell_nodes_top_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_ghost_node_pos_top.csv')
+        self.dwell_nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_ghost_node_pos_bot.csv')
 
         self.nodes_top = np.genfromtxt(self.nodes_top_path, delimiter=',', skip_header=True)
         self.nodes_bot = np.genfromtxt(self.nodes_bot_path, delimiter=',', skip_header=True)
