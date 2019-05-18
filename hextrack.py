@@ -10,8 +10,8 @@ import os
 
 from src.tracker import Tracker
 from src.Analysis import Display
-from src.preprocessing import Timecorrect
-from src.preprocessing import Linearization
+from src.preprocessing import timecorrect
+from src.preprocessing import linearization
 from src.preprocessing import Homography
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
@@ -41,8 +41,8 @@ class OfflineHextrack:
         self.made_mask = None
 
         # Create path to csv log file for tracking mouse position and LED-light state
-        if n == 0:
-            path = pkg_resources.resource_filename(__name__, "/data/interim/position_log_files/{}".format(src[57:76]))
+        path = pkg_resources.resource_filename(__name__, "/data/interim/position_log_files/{}".format(src[57:76]))
+        if not os.path.exists(path):
             try:
                 os.mkdir(path)
             except OSError:
@@ -160,9 +160,9 @@ if __name__ == '__main__':
     # Option to skip time correction and linearization
     key = input('Enter y for time correction and linearization: ')
     if key == 'y':
-        tcorrect = Timecorrect(__name__, sources=cfg['frame_sources'])
+        tcorrect = timecorrect(__name__, sources=cfg['frame_sources'])
         tcorrect.correction()
-        linearization = Linearization(__name__, sources=cfg['frame_sources'])
+        linearization = linearization(__name__, sources=cfg['frame_sources'])
         linearization.lin()
     else:
         pass

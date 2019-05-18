@@ -31,7 +31,7 @@ def lin_pos(x1, y1, x2, y2, x3, y3, z):
 
 
 # For time alignment of both videos on basis of the LED light flickering
-class Timecorrect:
+class timecorrect:
     def __init__(self, pathname, sources):
 
         # Loading in the position log files as created by the tracker
@@ -44,10 +44,11 @@ class Timecorrect:
         # Initiation of new time aligned position log files
         # Create path to csv log file for tracking mouse position and LED-light state
         path = pkg_resources.resource_filename(pathname, "/data/interim/time_corrected_position_log_files/{}".format(sources[0][57:76]))
-        try:
-            os.mkdir(path)
-        except OSError:
-            print("Creation of the directory %s failed, this path probably already exists" % path)
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed" % path)
 
         path_0 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/'
                                                            'pos_log_file_tcorr_0.csv'.format(sources[0][57:76]))
@@ -101,7 +102,7 @@ class Timecorrect:
                 self.pos_log_file_1.write('{}, {}, {}, {}\n'.format(self.dat_1f[i, 0], self.dat_1f[i, 1], self.dat_1f[i, 2], self.dat_1f[i, 3]))
 
 
-class Linearization:
+class linearization:
     def __init__(self, pathname, sources):
 
         # Load in the time aligned log files and corrected node positions
@@ -114,10 +115,11 @@ class Linearization:
         self.dat_1 = np.genfromtxt(self.data_path_2, delimiter=',', skip_header=False)
 
         path = pkg_resources.resource_filename(pathname, "/data/interim/linearized_position_log_files/{}".format(sources[0][57:76]))
-        try:
-            os.mkdir(path)
-        except OSError:
-            print("Creation of the directory %s failed, this path probably already exists" % path)
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed" % path)
 
         self.path_0 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_0.csv'.format(sources[0][57:76]))
         self.path_1 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_1.csv'.format(sources[0][57:76]))
@@ -227,6 +229,13 @@ class Homography:
             output = pkg_resources.resource_filename(self.pathname, '/data/raw/frame_images/im_{}.png'.format(n))
             cv2.imwrite(output, frame)
 
+        path = pkg_resources.resource_filename(pathname, "/src/resources/aligned")
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed" % path)
+
         self.stand_0_path = pkg_resources.resource_filename(pathname, '/src/resources/default/stand_0.png')
         self.stand_1_path = pkg_resources.resource_filename(pathname, '/src/resources/default/stand_1.png')
 
@@ -308,6 +317,10 @@ class Homography:
 
         self.stdvs1, self.stdvs2 = [], []
 
+        self.ghost_pts_0, self.ghost_dst_0 = None, None
+        self.dwell_pts_0, self.dwell_dst_0 = None, None
+        self.LED_pts_0, self.LED_dst_0 = None, None
+
     def homography_calc(self):
         # find the key points and descriptors with SIFT
         kp1, des1 = self.sift.detectAndCompute(self.stand_0, None)
@@ -359,10 +372,12 @@ class Homography:
                     '{}, {}, {}\n'.format(self.dst_0[i, 0, 0], self.dst_0[i, 0, 1], self.stand_nodes_top[i, 2]))
             for i in range(len(self.stand_ghost_nodes_top[:, 0])):
                 self.corr_ghost_top.write(
-                    '{}, {}, {}\n'.format(self.ghost_dst_0[i, 0, 0], self.ghost_dst_0[i, 0, 1], self.stand_ghost_nodes_top[i, 2]))
+                    '{}, {}, {}\n'.format(self.ghost_dst_0[i, 0, 0], self.ghost_dst_0[i, 0, 1],
+                                          self.stand_ghost_nodes_top[i, 2]))
             for i in range(len(self.stand_dwell_nodes_top[:, 0])):
                 self.corr_dwell_top.write(
-                    '{}, {}, {}\n'.format(self.dwell_dst_0[i, 0, 0], self.dwell_dst_0[i, 0, 1], self.stand_dwell_nodes_top[i, 2]))
+                    '{}, {}, {}\n'.format(self.dwell_dst_0[i, 0, 0], self.dwell_dst_0[i, 0, 1],
+                                          self.stand_dwell_nodes_top[i, 2]))
         else:
             logging.debug('Error: Not enough matches found')
 
@@ -414,7 +429,7 @@ class Homography:
         self.corr_dwell_bot.close()
         self.corr_LED_bot.close()
 
-    # Finds the position of the LED light on basis of the Stdev of the first few frames of the video
+    # Finds the position of the LED light on basis of the Stddev of the first few frames of the video
     def LEDfind(self, sources, iterations=100):
         self.LED_top = self.LED_dst_0
         self.LED_bot = self.LED_dst_1
