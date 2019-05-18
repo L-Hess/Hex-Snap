@@ -1,0 +1,19 @@
+# Shape of the camera feeds
+frame_width: 800
+frame_height: 600
+frame_colors: 3
+
+# Height of the metadata bar at bottom of frame
+frame_metadata: 20
+frame_fps: 15.
+
+# Video sources
+frame_sources: [0, 1]
+
+# Add timestamp and/or tickstamp to frame image
+frame_add_tickstamp: False
+frame_add_timestamp: False
+
+# Video writer information
+video_container: .avi
+video_codec: MP42
