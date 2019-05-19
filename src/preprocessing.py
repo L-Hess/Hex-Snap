@@ -83,12 +83,12 @@ class timecorrect:
         if len(led_0) > len(led_1):
             self.dat_0f = self.dat_0
             self.dat_1f = np.full_like(self.dat_0f, np.nan)
-            for i in range(len(i_1) - 1):
+            for i in range(len(i_0)-1):
                 self.dat_0f[i_1[i]:i_1[i] + (i_0[i + 1] - i_0[i])] = self.dat_0[i_0[i]:i_0[i + 1]]
         elif len(led_0) < len(led_1):
             self.dat_1f = self.dat_1
             self.dat_0f = np.full_like(self.dat_1f, np.nan)
-            for i in range(len(i_0) - 1):
+            for i in range(len(i_1)-1):
                 self.dat_0f[i_1[i]:i_1[i] + (i_0[i + 1] - i_0[i])] = self.dat_0[i_0[i]:i_0[i + 1]]
         elif len(led_0) == len(led_1):
             pass
@@ -108,11 +108,15 @@ class linearization:
         # Load in the time aligned log files and corrected node positions
         # Ghost nodes are used for nodes that are off of the video
         # Dwell nodes are used for nodes that are off of the video
-        self.data_path_1 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/pos_log_file_tcorr_0.csv'.format(sources[0][57:76]))
-        self.data_path_2 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/pos_log_file_tcorr_1.csv'.format(sources[0][57:76]))
+        self.data_path_1 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}'
+                                                                     '/pos_log_file_tcorr_0.csv'.format(sources[0][57:76]))
+        self.data_path_2 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}'
+                                                                     '/pos_log_file_tcorr_1.csv'.format(sources[0][57:76]))
 
         self.dat_0 = np.genfromtxt(self.data_path_1, delimiter=',', skip_header=False)
         self.dat_1 = np.genfromtxt(self.data_path_2, delimiter=',', skip_header=False)
+
+        print(len(self.dat_0))
 
         path = pkg_resources.resource_filename(pathname, "/data/interim/linearized_position_log_files/{}".format(sources[0][57:76]))
         if not os.path.exists(path):
@@ -178,6 +182,8 @@ class linearization:
             # Add the relative position and two closest nodes to the log file
             self.pos_log_file_lin_0.write('{}, {}, {}, {}, {}, {}, {}\n'.format(x, y, z, l, rel_pos, node1, node2))
 
+        self.pos_log_file_lin_0.close()
+
         for [x, y, z, l] in self.dat_1:
 
             # Calculate the distance of each mouse position to all nodes
@@ -213,6 +219,8 @@ class linearization:
 
             # Add the relative position and two closest nodes to the log file
             self.pos_log_file_lin_1.write('{}, {}, {}, {}, {}, {}, {}\n'.format(x, y, z, l, rel_pos, node1, node2))
+
+        self.pos_log_file_lin_0.close()
 
 
 # Calculation of the Homography matrix and remapping of node and LED position for the new videos
