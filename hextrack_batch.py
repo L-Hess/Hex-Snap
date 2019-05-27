@@ -108,7 +108,7 @@ class OfflineHextrack:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--sources', nargs='*', help='List of sources to read from')
+    parser.add_argument('-s', '--source', nargs='*', help='Map containing sources')
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
     parser.add_argument('-c', '--config', help='Configuration file')
     parser.add_argument('-n', '--nodes', help='Node location file')
@@ -130,7 +130,7 @@ if __name__ == '__main__':
     logging.getLogger('').addHandler(fh)
 
     # Construct the shared array to fit all frames
-    cfg_path = pkg_resources.resource_filename(__name__, '/src/resources/default/default_config.yml')
+    cfg_path = pkg_resources.resource_filename(__name__, '/src/resources/default/default_config_batch.yml')
     if cli_args.config is not None:
         cfg_path = Path(cli_args.config)
         if not cfg_path.exists():
@@ -139,47 +139,35 @@ if __name__ == '__main__':
     with open(cfg_path, 'r') as cfg_f:
         cfg = yaml.load(cfg_f)
 
-    if cli_args.sources is not None:
-        cfg['frame_sources'] = cli_args.sources
+    if cli_args.source is not None:
+        cfg['video_map'] = cli_args.source
 
-    # Initiate calculation of the homography matrix, directly corrects all node and LED positions
-    homography = Homography(__name__, sources=cfg['frame_sources'])
-    homography.homography_calc()
-    LED_pos = homography.LEDfind(sources=cfg['frame_sources'], iterations=200)
+    rootdir = cfg['video_map'][0]
 
-    # Initiates OfflineHextrack to track mouse positions and save position log files
-    for n, src in enumerate(cfg['frame_sources']):
-        print('Source {} @ {} starting'.format(n, src))
+    # Find videos in map and track them
+    for _, _, files in os.walk(rootdir):
+        for file in files:
+            if file.endswith("0.avi"):
+                path_0 = os.path.join(rootdir, file)
+                path_1 = path_0[:len(path_0)-5]+"1.avi"
+                sources = [path_0, path_1]
 
-        if not ONLY_ANALYSIS:
-            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos)
-            ht.loop()
+                # Initiate calculation of the homography matrix, directly corrects all node and LED positions
+                homography = Homography(__name__, sources=sources)
+                homography.homography_calc()
+                LED_pos = homography.LEDfind(sources=sources, iterations=200)
 
-    logging.debug('Position files acquired')
+                # Initiates OfflineHextrack to track mouse positions and save position log files
+                for n, src in enumerate(sources):
+                    print('Source {} @ {} starting'.format(n, src))
 
-    tcorrect = timecorrect(__name__, sources=cfg['frame_sources'])
-    tcorrect.correction()
-    linearization = Linearization(__name__, sources=cfg['frame_sources'])
-    linearization.lin()
+                    if not ONLY_ANALYSIS:
+                        ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos)
+                        ht.loop()
 
-    # Option to skip time correction and linearization
-    # key = input('Enter y for time correction and linearization: ')
-    # if key == 'y':
-    #     tcorrect = timecorrect(__name__, sources=cfg['frame_sources'])
-    #     tcorrect.correction()
-    #     linearization = Linearization(__name__, sources=cfg['frame_sources'])
-    #     linearization.lin()
-    # else:
-    #     pass
-    #
-    # # Option to skip analysis
-    # key = input('Enter y for analysis: ')
-    #
-    # if key == 'y':
-    #     display = Display(__name__)
-    #     display.path_display()
-    #     display.lin_path_display()
-    #     display.dwell_time()
-    #     display.ground_truth()
-    # if key != 'y':
-    #     pass
+                logging.debug('Position files acquired')
+
+                tcorrect = timecorrect(__name__, sources=sources)
+                tcorrect.correction()
+                linearization = Linearization(__name__, sources=sources)
+                linearization.lin()

@@ -35,15 +35,15 @@ class timecorrect:
     def __init__(self, pathname, sources):
 
         # Loading in the position log files as created by the tracker
-        self.data_path_1 = pkg_resources.resource_filename(pathname, '/data/interim/Position_log_files/{}/pos_log_file_0.csv'.format(sources[0][57:76]))
-        self.data_path_2 = pkg_resources.resource_filename(pathname, '/data/interim/Position_log_files/{}/pos_log_file_1.csv'.format(sources[0][57:76]))
+        self.data_path_1 = pkg_resources.resource_filename(pathname, '/data/interim/Position_log_files/{}/pos_log_file_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
+        self.data_path_2 = pkg_resources.resource_filename(pathname, '/data/interim/Position_log_files/{}/pos_log_file_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
 
         self.dat_0 = np.genfromtxt(self.data_path_1, delimiter=',', skip_header=False)
         self.dat_1 = np.genfromtxt(self.data_path_2, delimiter=',', skip_header=False)
 
         # Initiation of new time aligned position log files
         # Create path to csv log file for tracking mouse position and LED-light state
-        path = pkg_resources.resource_filename(pathname, "/data/interim/time_corrected_position_log_files/{}".format(sources[0][57:76]))
+        path = pkg_resources.resource_filename(pathname, "/data/interim/time_corrected_position_log_files/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         if not os.path.exists(path):
             try:
                 os.mkdir(path)
@@ -51,9 +51,9 @@ class timecorrect:
                 print("Creation of the directory %s failed" % path)
 
         path_0 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/'
-                                                           'pos_log_file_tcorr_0.csv'.format(sources[0][57:76]))
+                                                           'pos_log_file_tcorr_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         path_1 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/'
-                                                           'pos_log_file_tcorr_1.csv'.format(sources[0][57:76]))
+                                                           'pos_log_file_tcorr_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         self.pos_log_file_0 = open(path_0, 'w')
         self.pos_log_file_1 = open(path_1, 'w')
 
@@ -83,12 +83,12 @@ class timecorrect:
         if len(led_0) > len(led_1):
             self.dat_0f = self.dat_0
             self.dat_1f = np.full_like(self.dat_0f, np.nan)
-            for i in range(len(i_0)-1):
+            for i in range(len(i_1)-1):
                 self.dat_0f[i_1[i]:i_1[i] + (i_0[i + 1] - i_0[i])] = self.dat_0[i_0[i]:i_0[i + 1]]
         elif len(led_0) < len(led_1):
             self.dat_1f = self.dat_1
             self.dat_0f = np.full_like(self.dat_1f, np.nan)
-            for i in range(len(i_1)-1):
+            for i in range(len(i_0)-1):
                 self.dat_0f[i_1[i]:i_1[i] + (i_0[i + 1] - i_0[i])] = self.dat_0[i_0[i]:i_0[i + 1]]
         elif len(led_0) == len(led_1):
             pass
@@ -96,37 +96,39 @@ class timecorrect:
         # Save the new log files
         if not len(led_0) == len(led_1):
             for i in range(len(self.dat_0f)):
-                self.pos_log_file_0.write('{}, {}, {}, {}\n'.format(self.dat_0f[i, 0], self.dat_0f[i, 1], self.dat_0f[i, 2], self.dat_0f[i, 3]))
+                self.pos_log_file_0.write('{}, {}, {}, {}\n'.format(self.dat_0f[i, 0], self.dat_0f[i, 1],
+                                                                    self.dat_0f[i, 2], self.dat_0f[i, 3]))
 
             for i in range(len(self.dat_1f)):
-                self.pos_log_file_1.write('{}, {}, {}, {}\n'.format(self.dat_1f[i, 0], self.dat_1f[i, 1], self.dat_1f[i, 2], self.dat_1f[i, 3]))
+                self.pos_log_file_1.write('{}, {}, {}, {}\n'.format(self.dat_1f[i, 0], self.dat_1f[i, 1],
+                                                                    self.dat_1f[i, 2], self.dat_1f[i, 3]))
 
+        self.pos_log_file_0.close()
+        self.pos_log_file_1.close()
 
-class linearization:
+class Linearization:
     def __init__(self, pathname, sources):
 
         # Load in the time aligned log files and corrected node positions
         # Ghost nodes are used for nodes that are off of the video
         # Dwell nodes are used for nodes that are off of the video
         self.data_path_1 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}'
-                                                                     '/pos_log_file_tcorr_0.csv'.format(sources[0][57:76]))
+                                                                     '/pos_log_file_tcorr_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         self.data_path_2 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}'
-                                                                     '/pos_log_file_tcorr_1.csv'.format(sources[0][57:76]))
+                                                                     '/pos_log_file_tcorr_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
 
         self.dat_0 = np.genfromtxt(self.data_path_1, delimiter=',', skip_header=False)
         self.dat_1 = np.genfromtxt(self.data_path_2, delimiter=',', skip_header=False)
 
-        print(len(self.dat_0))
-
-        path = pkg_resources.resource_filename(pathname, "/data/interim/linearized_position_log_files/{}".format(sources[0][57:76]))
+        path = pkg_resources.resource_filename(pathname, "/data/interim/linearized_position_log_files/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         if not os.path.exists(path):
             try:
                 os.mkdir(path)
             except OSError:
                 print("Creation of the directory %s failed" % path)
 
-        self.path_0 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_0.csv'.format(sources[0][57:76]))
-        self.path_1 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_1.csv'.format(sources[0][57:76]))
+        self.path_0 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
+        self.path_1 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         self.pos_log_file_lin_0 = open(self.path_0, 'w')
         self.pos_log_file_lin_1 = open(self.path_1, 'w')
 
@@ -220,7 +222,7 @@ class linearization:
             # Add the relative position and two closest nodes to the log file
             self.pos_log_file_lin_1.write('{}, {}, {}, {}, {}, {}, {}\n'.format(x, y, z, l, rel_pos, node1, node2))
 
-        self.pos_log_file_lin_0.close()
+        self.pos_log_file_lin_1.close()
 
 
 # Calculation of the Homography matrix and remapping of node and LED position for the new videos
