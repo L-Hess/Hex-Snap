@@ -15,7 +15,7 @@ from src.preprocessing import Linearization
 from src.preprocessing import Homography
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = False
+ONLY_ANALYSIS = True
 
 
 # Grab frames and return captured frame
@@ -31,7 +31,7 @@ class Grabber:
 
 # Loops through frames, capturing them and applying tracking
 class OfflineHextrack:
-    def __init__(self, cfg, src, n, LED_pos):
+    def __init__(self, cfg, src, n, LED_pos, LED_tresholds):
         threading.current_thread().name = 'HexTrack'
 
         self.cfg = cfg
@@ -52,7 +52,7 @@ class OfflineHextrack:
 
         # Initiation of the Grabbers and Trackers and creation of csv log file
         self.grabber = Grabber(src)
-        self.tracker = Tracker(cfg, pos_log_file=open(self.path, 'w'), name=__name__, LED_pos=LED_pos)
+        self.tracker = Tracker(cfg, pos_log_file=open(self.path, 'w'), name=__name__, LED_pos=LED_pos, LED_tresholds=LED_tresholds)
 
         logging.debug('HexTrack initialization done!')
 
@@ -137,7 +137,7 @@ if __name__ == '__main__':
             raise FileNotFoundError('Config file not found!')
 
     with open(cfg_path, 'r') as cfg_f:
-        cfg = yaml.load(cfg_f)
+        cfg = yaml.load(cfg_f, Loader=yaml.FullLoader)
 
     if cli_args.sources is not None:
         cfg['frame_sources'] = cli_args.sources
@@ -145,14 +145,15 @@ if __name__ == '__main__':
     # Initiate calculation of the homography matrix, directly corrects all node and LED positions
     homography = Homography(__name__, sources=cfg['frame_sources'])
     homography.homography_calc()
-    LED_pos = homography.LEDfind(sources=cfg['frame_sources'], iterations=200)
 
     # Initiates OfflineHextrack to track mouse positions and save position log files
     for n, src in enumerate(cfg['frame_sources']):
         print('Source {} @ {} starting'.format(n, src))
 
         if not ONLY_ANALYSIS:
-            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos)
+            LED_pos = homography.LEDfind(sources=cfg['frame_sources'], iterations=200)
+            LED_tresholds = homography.LED_thresh(sources=cfg['frame_sources'], iterations=50, LED_pos=LED_pos)
+            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_tresholds=LED_tresholds)
             ht.loop()
 
     logging.debug('Position files acquired')

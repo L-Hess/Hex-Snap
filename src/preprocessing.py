@@ -50,12 +50,10 @@ class timecorrect:
             except OSError:
                 print("Creation of the directory %s failed" % path)
 
-        path_0 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/'
+        self.path_0 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/'
                                                            'pos_log_file_tcorr_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        path_1 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/'
+        self.path_1 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/'
                                                            'pos_log_file_tcorr_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        self.pos_log_file_0 = open(path_0, 'w')
-        self.pos_log_file_1 = open(path_1, 'w')
 
         self.dat_0f = None
         self.dat_1f = None
@@ -72,39 +70,38 @@ class timecorrect:
         led_1_peaks = np.diff(led_1) > 0
         i_0 = np.where(led_0_peaks == 1)[0]
         i_1 = np.where(led_1_peaks == 1)[0]
+        peak_diff_0 = np.diff(i_0)
+        peak_diff_1 = np.diff(i_1)
 
-        # Check which position log file is longer (in general this is the log file of the bottom video)
-        # Then creates a new log file for the other video and maps positions of LED-states of the shorter video
-        # to the positions of LED-states of the longer video
-        # This creates a new log file for the shorter video in which onsets of LED light are aligned between both
-        #  log-files
-        # Note that this can only be done if one of the videos is longer than the other, which will be the case in most
-        # cases for 30 min long videos (as are used for the HexMaze)
-        if len(led_0) > len(led_1):
-            self.dat_0f = self.dat_0
-            self.dat_1f = np.full_like(self.dat_0f, np.nan)
-            for i in range(len(i_1)-1):
-                self.dat_0f[i_1[i]:i_1[i] + (i_0[i + 1] - i_0[i])] = self.dat_0[i_0[i]:i_0[i + 1]]
-        elif len(led_0) < len(led_1):
-            self.dat_1f = self.dat_1
-            self.dat_0f = np.full_like(self.dat_1f, np.nan)
-            for i in range(len(i_0)-1):
-                self.dat_0f[i_1[i]:i_1[i] + (i_0[i + 1] - i_0[i])] = self.dat_0[i_0[i]:i_0[i + 1]]
-        elif len(led_0) == len(led_1):
-            pass
+        min_it = np.min([len(peak_diff_0),len(peak_diff_1)])
 
-        # Save the new log files
-        if not len(led_0) == len(led_1):
-            for i in range(len(self.dat_0f)):
-                self.pos_log_file_0.write('{}, {}, {}, {}\n'.format(self.dat_0f[i, 0], self.dat_0f[i, 1],
-                                                                    self.dat_0f[i, 2], self.dat_0f[i, 3]))
+        self.dat_0f = np.full_like(self.dat_0[:peak_diff_0[0] - 1, :], np.nan)
+        self.dat_1f = np.full_like(self.dat_1[:peak_diff_1[0] - 1, :], np.nan)
 
-            for i in range(len(self.dat_1f)):
-                self.pos_log_file_1.write('{}, {}, {}, {}\n'.format(self.dat_1f[i, 0], self.dat_1f[i, 1],
-                                                                    self.dat_1f[i, 2], self.dat_1f[i, 3]))
+        for i in range(min_it):
+            if peak_diff_0[i] > peak_diff_1[i]:
+                self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
+                self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
+                if not i == min_it - 1:
+                    diff = peak_diff_0[i] - peak_diff_1[i]
+                    add = np.full((diff, 4), np.nan)
+                    self.dat_1f = np.concatenate((self.dat_1f, add), axis=0)
 
-        self.pos_log_file_0.close()
-        self.pos_log_file_1.close()
+            elif peak_diff_1[i] > peak_diff_0[i]:
+                self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
+                self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
+                if not i == min_it - 1:
+                    diff = peak_diff_1[i] - peak_diff_0[i]
+                    add = np.full((diff, 4), np.nan)
+                    self.dat_0f = np.concatenate((self.dat_0f, add), axis=0)
+
+            elif peak_diff_0[i] == peak_diff_1[i]:
+                self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
+                self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
+
+        np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state", comments='')
+        np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state", comments='')
+
 
 class Linearization:
     def __init__(self, pathname, sources):
@@ -515,3 +512,45 @@ class Homography:
         y2 += miny2
 
         return [x1, y1, x2, y2]
+
+    def LED_thresh(self, sources, iterations, LED_pos):
+
+        led_values_0 = []
+        led_values_1 = []
+
+        # Start the video capture of the two videos
+        cap_0 = cv2.VideoCapture(sources[0])
+        cap_1 = cv2.VideoCapture(sources[1])
+
+        i = 0
+        # Calculate the value of all pixels in the cropped video files and save them in the initiated matrices
+        while i < iterations-1:
+
+            _, frame_0 = cap_0.read()
+            frame_0 = cv2.cvtColor(frame_0, cv2.COLOR_BGR2GRAY)
+
+            _, frame_1 = cap_1.read()
+            frame_1 = cv2.cvtColor(frame_1, cv2.COLOR_BGR2GRAY)
+
+            led_frame_0 = frame_0[int((LED_pos[1]-2)):int((LED_pos[1]+2)),
+                             int((LED_pos[0]-2)):int((LED_pos[0]+2))]
+            led_frame_1 = frame_1[int((LED_pos[3]-2)):int((LED_pos[3]+2)),
+                             int((LED_pos[2]-2)):int((LED_pos[2]+2))]
+
+            led_val_0 = np.mean(led_frame_0)
+            led_val_1 = np.mean(led_frame_1)
+            led_values_0.append(led_val_0)
+            led_values_1.append(led_val_1)
+
+            i += 1
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        cap_0.release()
+        cv2.destroyAllWindows()
+
+        min_0, max_0 = np.min(led_values_0), np.max(led_values_0)
+        min_1, max_1 = np.min(led_values_1), np.max(led_values_1)
+        thresh_0, thresh_1 = (min_0 + max_0)/2, (min_1 + max_1)/2
+
+        return [thresh_0, thresh_1]

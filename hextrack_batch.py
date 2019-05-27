@@ -137,7 +137,7 @@ if __name__ == '__main__':
             raise FileNotFoundError('Config file not found!')
 
     with open(cfg_path, 'r') as cfg_f:
-        cfg = yaml.load(cfg_f)
+        cfg = yaml.load(cfg_f, Loader=yaml.FullLoader)
 
     if cli_args.source is not None:
         cfg['video_map'] = cli_args.source

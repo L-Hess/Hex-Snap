@@ -40,7 +40,7 @@ def distance(x1, y1, x2, y2):
 # Simple tracking of the mouse position on basis of filtering out background and finding the biggest blob in the filter
 # (which would be the mouse)
 class Tracker:
-    def __init__(self, cfg, LED_pos, idx=0, thresh_mask=100, thresh_led=75, thresh_detect=35, pos_log_file=None,
+    def __init__(self, cfg, LED_pos, LED_tresholds, idx=0, thresh_mask=100, thresh_detect=35, pos_log_file=None,
                  name=__name__):
         super().__init__()
         self.id = idx
@@ -49,7 +49,8 @@ class Tracker:
         self.name = name
 
         self.thresh_detect = 255 - thresh_detect
-        self.thresh_led = thresh_led
+        self.thresh_led_0 = LED_tresholds[0]
+        self.thresh_led_1 = LED_tresholds[1]
 
         self.n_frames = 0
         self.frame = None
@@ -230,12 +231,12 @@ class Tracker:
         if self.n == 0:
             self.led_frame = self.frame[int((self.LED_pos[1]-2)):int((self.LED_pos[1]+2)),
                              int((self.LED_pos[0]-2)):int((self.LED_pos[0]+2)), 0]
-            self.led_state = np.mean(self.led_frame) > self.thresh_led
+            self.led_state = np.mean(self.led_frame) > self.thresh_led_0
 
         if self.n == 1:
             self.led_frame = self.frame[int((self.LED_pos[3]-2)):int((self.LED_pos[3]+2)),
                              int((self.LED_pos[2]-2)):int((self.LED_pos[2]+2)), 0]
-            self.led_state = np.mean(self.led_frame) > self.thresh_led
+            self.led_state = np.mean(self.led_frame) > self.thresh_led_1
 
         if self.led_state:
             self.led_state = 1
