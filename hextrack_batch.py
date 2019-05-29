@@ -9,6 +9,8 @@ import threading
 import os
 from tqdm import tqdm
 from moviepy.editor import VideoFileClip
+import numpy as np
+import glob
 
 from src.tracker import Tracker
 from src.Analysis import Display
@@ -18,6 +20,16 @@ from src.preprocessing import Homography
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
 ONLY_ANALYSIS = False
+
+
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    val = array[idx]
+    if val > value:
+        array[idx] = 0
+        val = find_nearest(array, value)
+    return val
 
 
 # Grab frames and return captured frame
@@ -153,28 +165,45 @@ if __name__ == '__main__':
     # Find videos in map and track them
     for _, _, files in os.walk(rootdir):
         for file in files:
+
             if file.endswith("0.avi"):
+                logs = []
+                logs_time = []
                 path_0 = os.path.join(rootdir, file)
                 path_1 = path_0[:len(path_0)-5]+"1.avi"
+                time = 3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13]) + int(path_0[len(path_0)-12:len(path_0)-10])
                 sources = [path_0, path_1]
 
-                # Initiate calculation of the homography matrix, directly corrects all node and LED positions
-                homography = Homography(__name__, sources=sources)
-                homography.homography_calc()
+                for file in files:
+                    if file.endswith('log'):
+                        logs.append(file)
+                        logs_time.append(3600*int(file[11:13])+60*int(file[14:16])+int(file[17:19]))
 
-                # Initiates OfflineHextrack to track mouse positions and save position log files
-                for n, src in enumerate(sources):
-                    print('Source {} @ {} starting'.format(n, src))
+                log_time = find_nearest(logs_time, time)
+                log_time_h = int(np.floor(log_time/3600))
+                log_time_m = int(np.floor((log_time - log_time_h*3600)/60))
+                log_time_s = int(np.floor((log_time - log_time_h*3600 - log_time_m*60)))
 
-                    if not ONLY_ANALYSIS:
-                        LED_pos = homography.LEDfind(sources=sources, iterations=200)
-                        LED_tresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
-                        ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_tresholds=LED_tresholds)
-                        ht.loop()
+                for name in glob.glob('{}/*{}_{}-{}-{}*log'.format(rootdir, path_0[len(path_0)-29:len(path_0)-19], format(log_time_h, '02d'), format(log_time_m, '02d'), format(log_time_s, '02d'))):
+                    log = name
 
-                logging.debug('Position files acquired')
 
-                tcorrect = timecorrect(__name__, sources=sources)
-                tcorrect.correction()
-                linearization = Linearization(__name__, sources=sources)
-                linearization.lin()
+                # # Initiate calculation of the homography matrix, directly corrects all node and LED positions
+                # homography = Homography(__name__, sources=sources)
+                # homography.homography_calc()
+                # # Initiates OfflineHextrack to track mouse positions and save position log files
+                # for n, src in enumerate(sources):
+                #     print('Source {} @ {} starting'.format(n, src))
+                #
+                #     if not ONLY_ANALYSIS:
+                #         LED_pos = homography.LEDfind(sources=sources, iterations=200)
+                #         LED_tresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
+                #         ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_tresholds=LED_tresholds)
+                #         ht.loop()
+                #
+                # logging.debug('Position files acquired')
+                #
+                # tcorrect = timecorrect(__name__, sources=sources)
+                # tcorrect.correction()
+                # linearization = Linearization(__name__, sources=sources)
+                # linearization.lin()

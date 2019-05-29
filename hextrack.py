@@ -169,6 +169,7 @@ if __name__ == '__main__':
     linearization = Linearization(__name__, sources=cfg['frame_sources'])
     linearization.lin()
 
+
     # Option to skip time correction and linearization
     # key = input('Enter y for time correction and linearization: ')
     # if key == 'y':

@@ -550,3 +550,11 @@ class Homography:
         thresh_0, thresh_1 = (min_0 + max_0)/2, (min_1 + max_1)/2
 
         return [thresh_0, thresh_1]
+
+
+class TrialCut:
+    def __init__(self):
+        pass
+
+    def log_data(self):
+        pass
