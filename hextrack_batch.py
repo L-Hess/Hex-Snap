@@ -179,13 +179,20 @@ if __name__ == '__main__':
                         logs.append(file)
                         logs_time.append(3600*int(file[11:13])+60*int(file[14:16])+int(file[17:19]))
 
-                log_time = find_nearest(logs_time, time)
-                log_time_h = int(np.floor(log_time/3600))
-                log_time_m = int(np.floor((log_time - log_time_h*3600)/60))
-                log_time_s = int(np.floor((log_time - log_time_h*3600 - log_time_m*60)))
+                try:
+                    log_time = find_nearest(logs_time, time)
+                    log_time_h = int(np.floor(log_time / 3600))
+                    log_time_m = int(np.floor((log_time - log_time_h * 3600) / 60))
+                    log_time_s = int(np.floor((log_time - log_time_h * 3600 - log_time_m * 60)))
 
-                for name in glob.glob('{}/*{}_{}-{}-{}*log'.format(rootdir, path_0[len(path_0)-29:len(path_0)-19], format(log_time_h, '02d'), format(log_time_m, '02d'), format(log_time_s, '02d'))):
-                    log = name
+                    for name in glob.glob(
+                            '{}/*{}_{}-{}-{}*log'.format(rootdir, path_0[len(path_0) - 29:len(path_0) - 19],
+                                                         format(log_time_h, '02d'), format(log_time_m, '02d'),
+                                                         format(log_time_s, '02d'))):
+                        log = name
+                except ValueError:
+                    print('Error:Log file is probably not present in designated folder')
+
 
 
                 # # Initiate calculation of the homography matrix, directly corrects all node and LED positions
