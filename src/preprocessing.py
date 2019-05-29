@@ -463,7 +463,6 @@ class Homography:
 
         # Calculate the value of all pixels in the cropped video files and save them in the initiated matrices
         while i < iterations-1:
-            i += 1
             rt, frame_0 = cap_0.read()
             frame_0 = cv2.cvtColor(frame_0, cv2.COLOR_BGR2GRAY)
             frame_0 = frame_0[miny1:maxy1, minx1:maxx1]
@@ -478,6 +477,7 @@ class Homography:
                     val2[k, j, i] = frame_1[k, j]
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+            i += 1
         cap_0.release()
         cv2.destroyAllWindows()
 
@@ -525,12 +525,8 @@ class Homography:
         i = 0
         # Calculate the value of all pixels in the cropped video files and save them in the initiated matrices
         while i < iterations-1:
-
             _, frame_0 = cap_0.read()
-            frame_0 = cv2.cvtColor(frame_0, cv2.COLOR_BGR2GRAY)
-
             _, frame_1 = cap_1.read()
-            frame_1 = cv2.cvtColor(frame_1, cv2.COLOR_BGR2GRAY)
 
             led_frame_0 = frame_0[int((LED_pos[1]-2)):int((LED_pos[1]+2)),
                              int((LED_pos[0]-2)):int((LED_pos[0]+2))]
