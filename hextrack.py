@@ -7,6 +7,8 @@ import pkg_resources
 from pathlib import Path
 import threading
 import os
+from tqdm import tqdm
+from moviepy.editor import VideoFileClip
 
 from src.tracker import Tracker
 from src.Analysis import Display
@@ -56,12 +58,14 @@ class OfflineHextrack:
 
         logging.debug('HexTrack initialization done!')
 
+        self.vid = VideoFileClip(src)
+        self.duration = self.vid.duration*15
+
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
-        # i = 0
-        # while i < 2000:
-        #     i += 1
-        while True:
+        pbar = tqdm(range(int(self.duration)))
+        # pbar = tqdm(range(2000))
+        for i in pbar:
             frame = self.grabber.next()
             if frame is None:
                 break
@@ -85,8 +89,10 @@ class OfflineHextrack:
             #         input('Please upload custom mask under the name new_mask.png to the output folder and press enter')
             #         self.made_mask = cv2.imread('new_mask.png', 0)
             #         self.mask_init = False
-            self.frame_idx += 1
+            # self.frame_idx += 1
         self.tracker.close()
+        pbar.close()
+        self.vid.reader.close()
 
     # Redundant, might be deleted later
     def process_events(self, display=False):
