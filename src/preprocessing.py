@@ -553,8 +553,30 @@ class Homography:
 
 
 class TrialCut:
-    def __init__(self):
-        pass
+    def __init__(self, paths):
+        self.path_vid_0 = paths[0]
+        self.path_vid_1 = paths[1]
+        self.log_path = paths[2]
 
     def log_data(self):
-        pass
+        vid_t = (3600 * int(self.vid_0_path[63:65]) + 60 * int(self.vid_0_path[66:68]) + int(
+            self.vid_0_path[69:71])) * 15
+
+        act = []
+        act_line = ["Trial ++++++++ active ++++++++"]
+
+        inact = []
+        inact_line = ["Trial ------- inactive -------"]
+
+        with open(self.log_path) as f:
+            f = f.readlines()
+
+            for line in f:
+                for phrase in act_line:
+                    if phrase in line:
+                        act.append(line)
+                for phrase in inact_line:
+                    if phrase in line:
+                        inact.append(line)
+
+        log_onsets, log_offsets = [], []

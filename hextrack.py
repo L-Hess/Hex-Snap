@@ -124,17 +124,6 @@ if __name__ == '__main__':
     logfile = Path.home() / "Videos/hextrack/{}_hextrack_log".format(
         time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime(time.time())))
 
-    if cli_args.debug:
-        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - (%(threadName)-9s) %(message)s')
-
-    else:
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s - (%(threadName)-9s) %(message)s')
-
-    fh = logging.FileHandler(str(logfile))
-    fhf = logging.Formatter('%(asctime)s : %(levelname)s : [%(threadName)-9s] - %(message)s')
-    fh.setFormatter(fhf)
-    logging.getLogger('').addHandler(fh)
-
     # Construct the shared array to fit all frames
     cfg_path = pkg_resources.resource_filename(__name__, '/src/resources/default/default_config.yml')
     if cli_args.config is not None:

@@ -17,6 +17,7 @@ from src.Analysis import Display
 from src.preprocessing import timecorrect
 from src.preprocessing import Linearization
 from src.preprocessing import Homography
+from src.preprocessing import TrialCut
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
 ONLY_ANALYSIS = False
@@ -136,17 +137,6 @@ if __name__ == '__main__':
     logfile = Path.home() / "Videos/hextrack/{}_hextrack_log".format(
         time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime(time.time())))
 
-    if cli_args.debug:
-        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - (%(threadName)-9s) %(message)s')
-
-    else:
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s - (%(threadName)-9s) %(message)s')
-
-    fh = logging.FileHandler(str(logfile))
-    fhf = logging.Formatter('%(asctime)s : %(levelname)s : [%(threadName)-9s] - %(message)s')
-    fh.setFormatter(fhf)
-    logging.getLogger('').addHandler(fh)
-
     # Construct the shared array to fit all frames
     cfg_path = pkg_resources.resource_filename(__name__, '/src/resources/default/default_config_batch.yml')
     if cli_args.config is not None:
@@ -161,6 +151,7 @@ if __name__ == '__main__':
         cfg['video_map'] = cli_args.source
 
     rootdir = cfg['video_map'][0]
+    log = None
 
     # Find videos in map and track them
     for _, _, files in os.walk(rootdir):
@@ -174,6 +165,8 @@ if __name__ == '__main__':
                 time = 3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13]) + int(path_0[len(path_0)-12:len(path_0)-10])
                 sources = [path_0, path_1]
 
+                # Scans through files and finds correct log file within map for each video
+                # (also works for multiple log files present)
                 for file in files:
                     if file.endswith('log'):
                         logs.append(file)
@@ -193,24 +186,27 @@ if __name__ == '__main__':
                 except ValueError:
                     print('Error:Log file is probably not present in designated folder')
 
+                paths = [path_0, path_1, log]
 
+                # Initiate calculation of the homography matrix, directly corrects all node and LED positions
+                homography = Homography(__name__, sources=sources)
+                homography.homography_calc()
+                # Initiates OfflineHextrack to track mouse positions and save position log files
+                for n, src in enumerate(sources):
+                    print('Source {} @ {} starting'.format(n, src))
 
-                # # Initiate calculation of the homography matrix, directly corrects all node and LED positions
-                # homography = Homography(__name__, sources=sources)
-                # homography.homography_calc()
-                # # Initiates OfflineHextrack to track mouse positions and save position log files
-                # for n, src in enumerate(sources):
-                #     print('Source {} @ {} starting'.format(n, src))
-                #
-                #     if not ONLY_ANALYSIS:
-                #         LED_pos = homography.LEDfind(sources=sources, iterations=200)
-                #         LED_tresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
-                #         ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_tresholds=LED_tresholds)
-                #         ht.loop()
-                #
-                # logging.debug('Position files acquired')
-                #
-                # tcorrect = timecorrect(__name__, sources=sources)
-                # tcorrect.correction()
-                # linearization = Linearization(__name__, sources=sources)
-                # linearization.lin()
+                    if not ONLY_ANALYSIS:
+                        LED_pos = homography.LEDfind(sources=sources, iterations=200)
+                        LED_tresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
+                        ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_tresholds=LED_tresholds)
+                        ht.loop()
+
+                logging.debug('Position files acquired')
+
+                # trialcut = TrialCut(paths)
+                # trialcut.log_data()
+
+                tcorrect = timecorrect(__name__, sources=sources)
+                tcorrect.correction()
+                linearization = Linearization(__name__, sources=sources)
+                linearization.lin()
