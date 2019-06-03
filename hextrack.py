@@ -17,7 +17,7 @@ from src.preprocessing import Linearization
 from src.preprocessing import Homography
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = False
+ONLY_ANALYSIS = True
 
 
 # Grab frames and return captured frame

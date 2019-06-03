@@ -13,14 +13,14 @@ import numpy as np
 import glob
 
 from src.tracker import Tracker
-from src.Analysis import Display
 from src.preprocessing import timecorrect
 from src.preprocessing import Linearization
 from src.preprocessing import Homography
 from src.preprocessing import TrialCut
+from src.trial_analysis import TrialDisplay
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = False
+ONLY_ANALYSIS = True
 
 
 def find_nearest(array, value):
@@ -56,7 +56,8 @@ class OfflineHextrack:
         self.made_mask = None
 
         # Create path to csv log file for tracking mouse position and LED-light state
-        path = pkg_resources.resource_filename(__name__, "/data/interim/position_log_files/{}".format(src[len(src)-29:len(src)-10]))
+        path = pkg_resources.resource_filename(__name__, "/data/interim/position_log_files/{}".format(src[len(src)-29:
+                                                                                                          len(src)-10]))
         if not os.path.exists(path):
             try:
                 os.mkdir(path)
@@ -76,8 +77,8 @@ class OfflineHextrack:
 
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
-        pbar = tqdm(range(int(self.duration)))
-        # pbar = tqdm(range(2000))
+        # pbar = tqdm(range(int(self.duration)))
+        pbar = tqdm(range(5000))
         for i in pbar:
             frame = self.grabber.next()
             if frame is None:
@@ -203,10 +204,13 @@ if __name__ == '__main__':
 
                 logging.debug('Position files acquired')
 
-                # trialcut = TrialCut(paths)
-                # trialcut.log_data()
-
                 tcorrect = timecorrect(__name__, sources=sources)
                 tcorrect.correction()
                 linearization = Linearization(__name__, sources=sources)
-                linearization.lin()
+                dat_0, dat_1 = linearization.lin()
+
+                trialcut = TrialCut(paths, [dat_0, dat_1])
+                trialcut.log_data()
+                trialcut.cut(__name__)
+
+                trialanalysis = TrialDisplay(__name__, paths)

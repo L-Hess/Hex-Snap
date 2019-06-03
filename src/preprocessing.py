@@ -131,17 +131,9 @@ class Linearization:
 
         self.nodes_top_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_node_pos_top.csv')
         self.nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_node_pos_bot.csv')
-        self.ghost_nodes_top_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_ghost_node_pos_top.csv')
-        self.ghost_nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_ghost_node_pos_bot.csv')
-        self.dwell_nodes_top_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_ghost_node_pos_top.csv')
-        self.dwell_nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_ghost_node_pos_bot.csv')
 
         self.nodes_top = np.genfromtxt(self.nodes_top_path, delimiter=',', skip_header=True)
         self.nodes_bot = np.genfromtxt(self.nodes_bot_path, delimiter=',', skip_header=True)
-        self.ghost_nodes_top = np.genfromtxt(self.ghost_nodes_top_path, delimiter=',', skip_header=True)
-        self.ghost_nodes_bot = np.genfromtxt(self.ghost_nodes_bot_path, delimiter=',', skip_header=True)
-        self.dwell_nodes_top = np.genfromtxt(self.dwell_nodes_top_path, delimiter=',', skip_header=True)
-        self.dwell_nodes_bot = np.genfromtxt(self.dwell_nodes_bot_path, delimiter=',', skip_header=True)
 
     # Linearization of the original paths of the log files on basis of the node positions
     def lin(self):
@@ -221,6 +213,8 @@ class Linearization:
 
         self.pos_log_file_lin_1.close()
 
+        return self.path_0, self.path_1
+
 
 # Calculation of the Homography matrix and remapping of node and LED position for the new videos
 class Homography:
@@ -249,12 +243,6 @@ class Homography:
         self.stand_nodes_top_path = pkg_resources.resource_filename(pathname, '/src/resources/default/node_pos_top.csv')
         self.stand_nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/resources/default/node_pos_bottom.csv')
 
-        self.stand_ghost_nodes_top_path = pkg_resources.resource_filename(pathname, '/src/resources/default/ghost_node_top.csv')
-        self.stand_ghost_nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/resources/default/ghost_node_bottom.csv')
-
-        self.stand_dwell_nodes_top_path = pkg_resources.resource_filename(pathname, '/src/resources/default/dwell_nodes_top.csv')
-        self.stand_dwell_nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/resources/default/dwell_nodes_bot.csv')
-
         self.im_0_path = pkg_resources.resource_filename(pathname, '/data/raw/frame_images/im_0.png')
         self.im_1_path = pkg_resources.resource_filename(pathname, '/data/raw/frame_images/im_1.png')
 
@@ -263,12 +251,6 @@ class Homography:
 
         self.stand_nodes_top = np.genfromtxt(self.stand_nodes_top_path, delimiter=',', skip_header=True)
         self.stand_nodes_bot = np.genfromtxt(self.stand_nodes_bot_path, delimiter=',', skip_header=True)
-
-        self.stand_ghost_nodes_top = np.genfromtxt(self.stand_ghost_nodes_top_path, delimiter=',', skip_header=True)
-        self.stand_ghost_nodes_bot = np.genfromtxt(self.stand_ghost_nodes_bot_path, delimiter=',', skip_header=True)
-
-        self.stand_dwell_nodes_top = np.genfromtxt(self.stand_dwell_nodes_top_path, delimiter=',', skip_header=True)
-        self.stand_dwell_nodes_bot = np.genfromtxt(self.stand_dwell_nodes_bot_path, delimiter=',', skip_header=True)
 
         self.stand_LED_top = np.genfromtxt(self.stand_LED_top_path, delimiter=',', skip_header=True)
         self.stand_LED_bot = np.genfromtxt(self.stand_LED_bot_path, delimiter=',', skip_header=True)
@@ -299,33 +281,19 @@ class Homography:
         # Initiate position files for homography-corrected node and LED crop positions
         corr_top = pkg_resources.resource_filename(pathname, '/src/resources/aligned/corr_node_pos_top.csv')
         corr_bot = pkg_resources.resource_filename(pathname, '/src/resources/aligned/corr_node_pos_bot.csv')
-        corr_ghost_top = pkg_resources.resource_filename(pathname, '/src/resources/aligned/corr_ghost_node_pos_top.csv')
-        corr_ghost_bot = pkg_resources.resource_filename(pathname, '/src/resources/aligned/corr_ghost_node_pos_bot.csv')
-        corr_dwell_top = pkg_resources.resource_filename(pathname, '/src/resources/aligned/corr_dwell_node_pos_top.csv')
-        corr_dwell_bot = pkg_resources.resource_filename(pathname, '/src/resources/aligned/corr_dwell_node_pos_bot.csv')
         corr_LED_top = pkg_resources.resource_filename(pathname, '/src/resources/aligned/corr_LED_top.csv')
         corr_LED_bot = pkg_resources.resource_filename(pathname, '/src/resources/aligned/corr_LED_bot.csv')
         self.corr_top = open(corr_top, 'w')
         self.corr_bot = open(corr_bot, 'w')
-        self.corr_ghost_top = open(corr_ghost_top, 'w')
-        self.corr_ghost_bot = open(corr_ghost_bot, 'w')
-        self.corr_dwell_top = open(corr_dwell_top, 'w')
-        self.corr_dwell_bot = open(corr_dwell_bot, 'w')
         self.corr_LED_top = open(corr_LED_top, 'w')
         self.corr_LED_bot = open(corr_LED_bot, 'w')
         self.corr_top.write('x, y, node\n')
         self.corr_bot.write('x, y, node\n')
-        self.corr_ghost_top.write('x, y, node\n')
-        self.corr_ghost_bot.write('x, y, node\n')
-        self.corr_dwell_top.write('x, y, node\n')
-        self.corr_dwell_bot.write('x, y, node\n')
         self.corr_LED_top.write('x, y\n')
         self.corr_LED_bot.write('x, y\n')
 
         self.stdvs1, self.stdvs2 = [], []
 
-        self.ghost_pts_0, self.ghost_dst_0 = None, None
-        self.dwell_pts_0, self.dwell_dst_0 = None, None
         self.LED_pts_0, self.LED_dst_0 = None, None
 
     def homography_calc(self):
@@ -361,12 +329,6 @@ class Homography:
             self.pts_0 = np.float32(self.stand_nodes_top[:, 0:2]).reshape(-1, 1, 2)
             self.dst_0 = cv2.perspectiveTransform(self.pts_0, self.M_0)
 
-            self.ghost_pts_0 = np.float32(self.stand_ghost_nodes_top[:, 0:2]).reshape(-1, 1, 2)
-            self.ghost_dst_0 = cv2.perspectiveTransform(self.ghost_pts_0, self.M_0)
-
-            self.dwell_pts_0 = np.float32(self.stand_dwell_nodes_top[:, 0:2]).reshape(-1, 1, 2)
-            self.dwell_dst_0 = cv2.perspectiveTransform(self.dwell_pts_0, self.M_0)
-
             self.LED_pts_0 = np.float32(self.stand_LED_top.reshape(-1, 1, 2))
             self.LED_dst_0 = cv2.perspectiveTransform(self.LED_pts_0, self.M_0)
 
@@ -377,20 +339,10 @@ class Homography:
             for i in range(len(self.stand_nodes_top[:, 0])):
                 self.corr_top.write(
                     '{}, {}, {}\n'.format(self.dst_0[i, 0, 0], self.dst_0[i, 0, 1], self.stand_nodes_top[i, 2]))
-            for i in range(len(self.stand_ghost_nodes_top[:, 0])):
-                self.corr_ghost_top.write(
-                    '{}, {}, {}\n'.format(self.ghost_dst_0[i, 0, 0], self.ghost_dst_0[i, 0, 1],
-                                          self.stand_ghost_nodes_top[i, 2]))
-            for i in range(len(self.stand_dwell_nodes_top[:, 0])):
-                self.corr_dwell_top.write(
-                    '{}, {}, {}\n'.format(self.dwell_dst_0[i, 0, 0], self.dwell_dst_0[i, 0, 1],
-                                          self.stand_dwell_nodes_top[i, 2]))
         else:
             logging.debug('Error: Not enough matches found')
 
         self.corr_top.close()
-        self.corr_ghost_top.close()
-        self.corr_dwell_top.close()
         self.corr_LED_top.close()
 
         # If enough good matches have been found, calculate new node locations
@@ -405,12 +357,6 @@ class Homography:
             self.pts_1 = np.float32(self.stand_nodes_bot[:, 0:2]).reshape(-1, 1, 2)
             self.dst_1 = cv2.perspectiveTransform(self.pts_1, self.M_1)
 
-            self.ghost_pts_1 = np.float32(self.stand_ghost_nodes_bot[:, 0:2]).reshape(-1, 1, 2)
-            self.ghost_dst_1 = cv2.perspectiveTransform(self.ghost_pts_1, self.M_1)
-
-            self.dwell_pts_1 = np.float32(self.stand_dwell_nodes_bot[:, 0:2]).reshape(-1, 1, 2)
-            self.dwell_dst_1 = cv2.perspectiveTransform(self.dwell_pts_1, self.M_1)
-
             self.LED_pts_1 = np.float32(self.stand_LED_bot.reshape(-1, 1, 2))
             self.LED_dst_1 = cv2.perspectiveTransform(self.LED_pts_1, self.M_1)
 
@@ -421,19 +367,11 @@ class Homography:
             for i in range(len(self.stand_nodes_bot[:, 0])):
                 self.corr_bot.write(
                     '{}, {}, {}\n'.format(self.dst_1[i, 0, 0], self.dst_1[i, 0, 1], self.stand_nodes_bot[i, 2]))
-            for i in range(len(self.stand_ghost_nodes_bot[:, 0])):
-                self.corr_ghost_bot.write(
-                    '{}, {}, {}\n'.format(self.ghost_dst_1[i, 0, 0], self.ghost_dst_1[i, 0, 1], self.stand_ghost_nodes_bot[i, 2]))
-            for i in range(len(self.stand_dwell_nodes_bot[:, 0])):
-                self.corr_dwell_bot.write(
-                    '{}, {}, {}\n'.format(self.dwell_dst_1[i, 0, 0], self.dwell_dst_1[i, 0, 1], self.stand_dwell_nodes_bot[i, 2]))
 
         else:
             logging.debug('Error: Not enough matches found')
 
         self.corr_bot.close()
-        self.corr_ghost_bot.close()
-        self.corr_dwell_bot.close()
         self.corr_LED_bot.close()
 
     # Finds the position of the LED light on basis of the Stddev of the first few frames of the video
@@ -553,14 +491,16 @@ class Homography:
 
 
 class TrialCut:
-    def __init__(self, paths):
+    def __init__(self, paths, data):
         self.path_vid_0 = paths[0]
         self.path_vid_1 = paths[1]
         self.log_path = paths[2]
+        self.dat_0 = np.genfromtxt(data[0], delimiter=',', skip_header=False)
+        self.dat_1 = np.genfromtxt(data[1], delimiter=',', skip_header=False)
 
     def log_data(self):
-        vid_t = (3600 * int(self.vid_0_path[63:65]) + 60 * int(self.vid_0_path[66:68]) + int(
-            self.vid_0_path[69:71])) * 15
+        vid_t = (3600 * int(self.path_vid_0[len(self.path_vid_0)-18:len(self.path_vid_0)-16]) + 60 * int(self.path_vid_0[len(self.path_vid_0)-15:len(self.path_vid_0)-13]) + int(
+            self.path_vid_0[len(self.path_vid_0)-12:len(self.path_vid_0)-10])) * 15
 
         act = []
         act_line = ["Trial ++++++++ active ++++++++"]
@@ -579,4 +519,64 @@ class TrialCut:
                     if phrase in line:
                         inact.append(line)
 
-        log_onsets, log_offsets = [], []
+        self.log_onsets, self.log_offsets = [], []
+
+        for i in range(len(act)):
+            on_t = (3600 * int(act[i][11:13]) + 60 * int(act[i][14:16]) + int(act[i][17:19])) * 15 - vid_t
+            off_t = (3600 * int(inact[i][11:13]) + 60 * int(inact[i][14:16]) + int(inact[i][17:19])) * 15 - vid_t
+
+            on_tf = np.argwhere(self.dat_0 == on_t)
+            if on_t in self.dat_0:
+                on_tf = on_tf[0][0]
+            else:
+                on_tf = np.nan
+            self.log_onsets.append(on_tf)
+
+            off_tf = np.argwhere(self.dat_0 == off_t)
+            if off_t in self.dat_0:
+                off_tf = off_tf[0][0]
+            else:
+                off_tf = np.nan
+            self.log_offsets.append(off_tf)
+
+    def cut(self, pathname):
+        path = pkg_resources.resource_filename(pathname, "/data/processed/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed" % path)
+
+        n = 1
+        for i in range(len(self.log_onsets)):
+
+            if not np.isnan(self.log_onsets[i]) and not np.isnan(self.log_offsets[i]):
+                # print(self.log_onsets[i], self.log_offsets[i])
+
+                path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}".format(
+                    self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
+                if not os.path.exists(path):
+                    try:
+                        os.mkdir(path)
+                    except OSError:
+                        print("Creation of the directory %s failed" % path)
+
+                path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}/position_log_files".format(
+                    self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
+                if not os.path.exists(path):
+                    try:
+                        os.mkdir(path)
+                    except OSError:
+                        print("Creation of the directory %s failed" % path)
+
+                if os.path.exists(path):
+                    self.path_0 = path + '/pos_log_file_0.csv'
+                    self.path_1 = path + '/pos_log_file_1.csv'
+
+                    self.dat_0f = self.dat_0[self.log_onsets[i]:self.log_offsets[i]]
+                    self.dat_1f = self.dat_1[self.log_onsets[i]:self.log_offsets[i]]
+
+                    np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node", comments='')
+                    np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node", comments='')
+
+                n += 1
