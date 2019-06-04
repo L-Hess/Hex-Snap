@@ -19,6 +19,7 @@ from src.preprocessing import GroundTruth
 from src.preprocessing import Homography
 from src.preprocessing import TrialCut
 from src.trial_analysis import TrialDisplay
+from src.validation import Validate
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
 ONLY_ANALYSIS = True
@@ -208,12 +209,17 @@ if __name__ == '__main__':
                 tcorrect = timecorrect(__name__, sources=sources)
                 tcorrect.correction()
                 linearization = Linearization(__name__, sources=sources)
-                path_0, path_1 = linearization.lin()
-                groundtruth = GroundTruth(__name__, path_0, path_1, sources=sources)
-                groundtruth.gt_mapping()
+                lin_path_0, lin_path_1 = linearization.lin()
+                groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
+                gt_path_0, gt_path_1 = groundtruth.gt_mapping()
 
-                # trialcut = TrialCut(paths, [dat_0, dat_1])
-                # trialcut.log_data()
-                # trialcut.cut(__name__)
-                #
-                # trialanalysis = TrialDisplay(__name__, paths)
+                trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
+                trialcut.log_data()
+                trialcut.cut(__name__)
+
+                TrialDisplay(__name__, paths)
+
+                # # Validation
+                # validate = Validate(path_0, path_1)
+                # validate.time_alignment_check()
+                # validate.gt_distance_check()

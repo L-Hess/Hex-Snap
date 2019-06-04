@@ -142,22 +142,28 @@ class Linearization:
             path = pkg_resources.resource_filename(self.pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_{}.csv'.format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
             pos_log_file = open(path, 'w')
             pos_log_file.write('x, y, frame_n, LED state, rel_pos, closest node, second closest node\n')
+
+            if n == 0:
+                nodes = self.nodes_top
+            if n == 1:
+                nodes = self.nodes_bot
+
             for [x, y, z, l] in dat:
 
                 # Calculate the distance of each mouse position to all nodes
-                dist = distance(x, y, self.nodes_top[:, 0], self.nodes_top[:, 1])
+                dist = distance(x, y, nodes[:, 0], nodes[:, 1])
 
                 # Finds the closest node and saves its position and node number
-                dist1, node1 = np.min(dist), self.nodes_top[np.argmin(dist), 2]
-                x_node_1, y_node_1 = self.nodes_top[np.argmin(dist), 0], self.nodes_top[np.argmin(dist), 1]
+                dist1, node1 = np.min(dist), nodes[np.argmin(dist), 2]
+                x_node_1, y_node_1 = nodes[np.argmin(dist), 0], nodes[np.argmin(dist), 1]
                 if np.isnan(dist1):
                     node1 = None
                     x_node_1, y_node_1 = None, None
 
                 # Find the second closest node and save its position and node number
                 dist[np.argmin(dist)] = 1e12
-                dist2, node2 = np.min(dist), self.nodes_top[np.argmin(dist), 2]
-                x_node_2, y_node_2 = self.nodes_top[np.argmin(dist), 0], self.nodes_top[np.argmin(dist), 1]
+                dist2, node2 = np.min(dist), nodes[np.argmin(dist), 2]
+                x_node_2, y_node_2 = nodes[np.argmin(dist), 0], nodes[np.argmin(dist), 1]
                 if np.isnan(dist2):
                     node2 = None
                     x_node_2, y_node_2 = None, None
@@ -258,7 +264,14 @@ class GroundTruth:
 
                 pos_log_file.write('{}, {}, {}, {}, {}, {}, {}, {}, {}\n'.format(dat[k, 0], dat[k, 1], dat[k, 2], dat[k, 3], dat[k, 4], dat[k, 5], dat[k, 6], x4, y4))
 
+            if n == 0:
+                path_0 = path
+            if n == 1:
+                path_1 = path
+
             n += 1
+
+        return path_0, path_1
 
 
 # Calculation of the Homography matrix and remapping of node and LED position for the new videos
@@ -628,7 +641,7 @@ class TrialCut:
                     # get cut out immediately; it is assumed no trial will take less than 5 (time aligned) frames
                     if not self.log_offsets[i]-self.log_onsets[i] <= 5:
 
-                        np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node", comments='')
-                        np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node", comments='')
+                        np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
+                        np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
 
                         n += 1
