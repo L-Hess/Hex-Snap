@@ -42,10 +42,13 @@ class TrialDisplay:
                         gt = TrialDisplay.ground_truth_path(self, path_0=path_0, path_1=path_1, savepath=savepath)
                         path_length, shortest_path_length = TrialDisplay.path_data(self, path_0=path_0, path_1=path_1, savepath=savepath)
                         TrialDisplay.make_html(self, savepath, gt)
+                        plt.close(gt)
 
     def ground_truth_path(self, path_0, path_1, savepath):
         dat_0 = np.genfromtxt(path_0, delimiter=',', skip_header=True)
         dat_1 = np.genfromtxt(path_1, delimiter=',', skip_header=True)
+
+
 
         ref_nodes = np.genfromtxt(pkg_resources.resource_filename(self.pathname, "/src/Resources/default/ref_nodes.csv"), delimiter=',', skip_header=True)
 

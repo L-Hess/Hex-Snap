@@ -124,10 +124,10 @@ class Linearization:
             except OSError:
                 print("Creation of the directory %s failed" % path)
 
-        self.path_0 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        self.path_1 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        self.pos_log_file_lin_0 = open(self.path_0, 'w')
-        self.pos_log_file_lin_1 = open(self.path_1, 'w')
+        # self.path_0 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
+        # self.path_1 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
+        # self.pos_log_file_lin_0 = open(self.path_0, 'w')
+        # self.pos_log_file_lin_1 = open(self.path_1, 'w')
 
         self.nodes_top_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_node_pos_top.csv')
         self.nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_node_pos_bot.csv')
@@ -135,85 +135,72 @@ class Linearization:
         self.nodes_top = np.genfromtxt(self.nodes_top_path, delimiter=',', skip_header=True)
         self.nodes_bot = np.genfromtxt(self.nodes_bot_path, delimiter=',', skip_header=True)
 
+        self.pathname = pathname
+        self.sources = sources
+
     # Linearization of the original paths of the log files on basis of the node positions
     def lin(self):
-        for [x, y, z, l] in self.dat_0:
+        n = 0
+        path_0, path_1 = None, None
 
-            # Calculate the distance of each mouse position to all nodes
-            dist = distance(x, y, self.nodes_top[:, 0], self.nodes_top[:, 1])
+        for dat in [self.dat_0, self.dat_1]:
+            path = pkg_resources.resource_filename(self.pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_{}.csv'.format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
+            pos_log_file = open(path, 'w')
+            for [x, y, z, l] in dat:
 
-            # Finds the closest node and saves its position and node number
-            dist1, node1 = np.min(dist), self.nodes_top[np.argmin(dist), 2]
-            x_node_1, y_node_1 = self.nodes_top[np.argmin(dist), 0], self.nodes_top[np.argmin(dist), 1]
-            if np.isnan(dist1):
-                node1 = None
-                x_node_1, y_node_1 = None, None
+                # Calculate the distance of each mouse position to all nodes
+                dist = distance(x, y, self.nodes_top[:, 0], self.nodes_top[:, 1])
 
-            # Find the second closest node and save its position and node number
-            dist[np.argmin(dist)] = 1e12
-            dist2, node2 = np.min(dist), self.nodes_top[np.argmin(dist), 2]
-            x_node_2, y_node_2 = self.nodes_top[np.argmin(dist), 0], self.nodes_top[np.argmin(dist), 1]
-            if np.isnan(dist2):
-                node2 = None
-                x_node_2, y_node_2 = None, None
+                # Finds the closest node and saves its position and node number
+                dist1, node1 = np.min(dist), self.nodes_top[np.argmin(dist), 2]
+                x_node_1, y_node_1 = self.nodes_top[np.argmin(dist), 0], self.nodes_top[np.argmin(dist), 1]
+                if np.isnan(dist1):
+                    node1 = None
+                    x_node_1, y_node_1 = None, None
 
-            # Find the relative position between both nodes on basis of the linearized position
-            # (see the function lin_pos as earlier defined)
-            rel_pos = np.nan
-            if not np.isnan(dist1):
-                nodes_dist = distance(x_node_1, y_node_1, x_node_2, y_node_2)
-                x_lin, y_lin, z_lin = lin_pos(x_node_1, y_node_1, x_node_2, y_node_2, x, y, z)
-                lin_dist_1 = distance(x_lin, y_lin, x_node_1, y_node_1)
-                lin_dist_2 = distance(x_lin, y_lin, x_node_2, y_node_2)
-                if lin_dist_1 + lin_dist_2 > nodes_dist + 0.2:
-                    rel_pos = -lin_dist_1 / nodes_dist
-                else:
-                    rel_pos = lin_dist_1 / nodes_dist
+                # Find the second closest node and save its position and node number
+                dist[np.argmin(dist)] = 1e12
+                dist2, node2 = np.min(dist), self.nodes_top[np.argmin(dist), 2]
+                x_node_2, y_node_2 = self.nodes_top[np.argmin(dist), 0], self.nodes_top[np.argmin(dist), 1]
+                if np.isnan(dist2):
+                    node2 = None
+                    x_node_2, y_node_2 = None, None
 
-            # Add the relative position and two closest nodes to the log file
-            self.pos_log_file_lin_0.write('{}, {}, {}, {}, {}, {}, {}\n'.format(x, y, z, l, rel_pos, node1, node2))
+                # Find the relative position between both nodes on basis of the linearized position
+                # (see the function lin_pos as earlier defined)
+                rel_pos = np.nan
+                if not np.isnan(dist1):
+                    nodes_dist = distance(x_node_1, y_node_1, x_node_2, y_node_2)
+                    x_lin, y_lin, z_lin = lin_pos(x_node_1, y_node_1, x_node_2, y_node_2, x, y, z)
+                    lin_dist_1 = distance(x_lin, y_lin, x_node_1, y_node_1)
+                    lin_dist_2 = distance(x_lin, y_lin, x_node_2, y_node_2)
+                    if lin_dist_1 + lin_dist_2 > nodes_dist + 0.2:
+                        rel_pos = -lin_dist_1 / nodes_dist
+                    else:
+                        rel_pos = lin_dist_1 / nodes_dist
 
-        self.pos_log_file_lin_0.close()
+                # Correct for cases in which the mouse is 'behind' the node, fix these positions to being on top of
+                # the node itself
+                if rel_pos > 1:
+                    print('test1')
+                    rel_pos = 1
+                if rel_pos < 0:
+                    print('test2')
+                    rel_pos = 0
 
-        for [x, y, z, l] in self.dat_1:
+                # Add the relative position and two closest nodes to the log file
+                pos_log_file.write('{}, {}, {}, {}, {}, {}, {}\n'.format(x, y, z, l, rel_pos, node1, node2))
 
-            # Calculate the distance of each mouse position to all nodes
-            dist = distance(x, y, self.nodes_bot[:, 0], self.nodes_bot[:, 1])
+            pos_log_file.close()
 
-            # Finds the closest node and saves its position and node number
-            dist1, node1 = np.min(dist), self.nodes_bot[np.argmin(dist), 2]
-            x_node_1, y_node_1 = self.nodes_bot[np.argmin(dist), 0], self.nodes_bot[np.argmin(dist), 1]
-            if np.isnan(dist1):
-                node1 = None
-                x_node_1, y_node_1 = None, None
+            if n == 0:
+                path_0 = path
+            elif n == 1:
+                path_1 = path
 
-            # Find the second closest node and save its position and node number
-            dist[np.argmin(dist)] = 1e12
-            dist2, node2 = np.min(dist), self.nodes_bot[np.argmin(dist), 2]
-            x_node_2, y_node_2 = self.nodes_bot[np.argmin(dist), 0], self.nodes_bot[np.argmin(dist), 1]
-            if np.isnan(dist2):
-                node2 = None
-                x_node_2, y_node_2 = None, None
+            n += 1
 
-            # Find the relative position between both nodes on basis of the linearized position
-            # (see the function lin_pos as earlier defined)
-            rel_pos = np.nan
-            if not np.isnan(dist1):
-                nodes_dist = distance(x_node_1, y_node_1, x_node_2, y_node_2)
-                x_lin, y_lin, z_lin = lin_pos(x_node_1, y_node_1, x_node_2, y_node_2, x, y, z)
-                lin_dist_1 = distance(x_lin, y_lin, x_node_1, y_node_1)
-                lin_dist_2 = distance(x_lin, y_lin, x_node_2, y_node_2)
-                if lin_dist_1 + lin_dist_2 > nodes_dist + 0.2:
-                    rel_pos = -lin_dist_1 / nodes_dist
-                else:
-                    rel_pos = lin_dist_1 / nodes_dist
-
-            # Add the relative position and two closest nodes to the log file
-            self.pos_log_file_lin_1.write('{}, {}, {}, {}, {}, {}, {}\n'.format(x, y, z, l, rel_pos, node1, node2))
-
-        self.pos_log_file_lin_1.close()
-
-        return self.path_0, self.path_1
+        return path_0, path_1
 
 
 # Calculation of the Homography matrix and remapping of node and LED position for the new videos
@@ -295,6 +282,9 @@ class Homography:
         self.stdvs1, self.stdvs2 = [], []
 
         self.LED_pts_0, self.LED_dst_0 = None, None
+
+        self.log_onsets, self.log_offsets = [], []
+        self.LED_pts_0, self.LED_pts_1 = [], []
 
     def homography_calc(self):
         # find the key points and descriptors with SIFT
@@ -576,7 +566,9 @@ class TrialCut:
                     self.dat_0f = self.dat_0[self.log_onsets[i]:self.log_offsets[i]]
                     self.dat_1f = self.dat_1[self.log_onsets[i]:self.log_offsets[i]]
 
-                    np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node", comments='')
-                    np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node", comments='')
+                    if not self.log_onsets[i] == self.log_offsets[i]:
 
-                n += 1
+                        np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node", comments='')
+                        np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node", comments='')
+
+                        n += 1

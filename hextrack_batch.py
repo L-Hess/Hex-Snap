@@ -77,8 +77,8 @@ class OfflineHextrack:
 
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
-        # pbar = tqdm(range(int(self.duration)))
-        pbar = tqdm(range(5000))
+        pbar = tqdm(range(int(self.duration)))
+        # pbar = tqdm(range(5000))
         for i in pbar:
             frame = self.grabber.next()
             if frame is None:
@@ -208,9 +208,9 @@ if __name__ == '__main__':
                 tcorrect.correction()
                 linearization = Linearization(__name__, sources=sources)
                 dat_0, dat_1 = linearization.lin()
-
-                trialcut = TrialCut(paths, [dat_0, dat_1])
-                trialcut.log_data()
-                trialcut.cut(__name__)
-
-                trialanalysis = TrialDisplay(__name__, paths)
+                #
+                # trialcut = TrialCut(paths, [dat_0, dat_1])
+                # trialcut.log_data()
+                # trialcut.cut(__name__)
+                #
+                # trialanalysis = TrialDisplay(__name__, paths)
