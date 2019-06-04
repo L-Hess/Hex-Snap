@@ -15,6 +15,7 @@ import glob
 from src.tracker import Tracker
 from src.preprocessing import timecorrect
 from src.preprocessing import Linearization
+from src.preprocessing import GroundTruth
 from src.preprocessing import Homography
 from src.preprocessing import TrialCut
 from src.trial_analysis import TrialDisplay
@@ -46,7 +47,7 @@ class Grabber:
 
 # Loops through frames, capturing them and applying tracking
 class OfflineHextrack:
-    def __init__(self, cfg, src, n, LED_pos, LED_tresholds):
+    def __init__(self, cfg, src, n, LED_pos, LED_thresholds):
         threading.current_thread().name = 'HexTrack'
 
         self.cfg = cfg
@@ -68,7 +69,7 @@ class OfflineHextrack:
 
         # Initiation of the Grabbers and Trackers and creation of csv log file
         self.grabber = Grabber(src)
-        self.tracker = Tracker(cfg, pos_log_file=open(self.path, 'w'), name=__name__, LED_pos=LED_pos, LED_tresholds=LED_tresholds)
+        self.tracker = Tracker(cfg, pos_log_file=open(self.path, 'w'), name=__name__, LED_pos=LED_pos, LED_thresholds=LED_thresholds)
 
         logging.debug('HexTrack initialization done!')
 
@@ -198,17 +199,19 @@ if __name__ == '__main__':
 
                     if not ONLY_ANALYSIS:
                         LED_pos = homography.LEDfind(sources=sources, iterations=200)
-                        LED_tresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
-                        ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_tresholds=LED_tresholds)
+                        LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
+                        ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds)
                         ht.loop()
 
-                logging.debug('Position files acquired')
+                        logging.debug('Position files acquired')
 
                 tcorrect = timecorrect(__name__, sources=sources)
                 tcorrect.correction()
                 linearization = Linearization(__name__, sources=sources)
-                dat_0, dat_1 = linearization.lin()
-                #
+                path_0, path_1 = linearization.lin()
+                groundtruth = GroundTruth(__name__, path_0, path_1, sources=sources)
+                groundtruth.gt_mapping()
+
                 # trialcut = TrialCut(paths, [dat_0, dat_1])
                 # trialcut.log_data()
                 # trialcut.cut(__name__)

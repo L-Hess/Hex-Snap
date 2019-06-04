@@ -124,11 +124,6 @@ class Linearization:
             except OSError:
                 print("Creation of the directory %s failed" % path)
 
-        # self.path_0 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        # self.path_1 = pkg_resources.resource_filename(pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        # self.pos_log_file_lin_0 = open(self.path_0, 'w')
-        # self.pos_log_file_lin_1 = open(self.path_1, 'w')
-
         self.nodes_top_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_node_pos_top.csv')
         self.nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_node_pos_bot.csv')
 
@@ -146,6 +141,7 @@ class Linearization:
         for dat in [self.dat_0, self.dat_1]:
             path = pkg_resources.resource_filename(self.pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_{}.csv'.format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
             pos_log_file = open(path, 'w')
+            pos_log_file.write('x, y, frame_n, LED state, rel_pos, closest node, second closest node\n')
             for [x, y, z, l] in dat:
 
                 # Calculate the distance of each mouse position to all nodes
@@ -182,10 +178,8 @@ class Linearization:
                 # Correct for cases in which the mouse is 'behind' the node, fix these positions to being on top of
                 # the node itself
                 if rel_pos > 1:
-                    print('test1')
                     rel_pos = 1
                 if rel_pos < 0:
-                    print('test2')
                     rel_pos = 0
 
                 # Add the relative position and two closest nodes to the log file
@@ -201,6 +195,70 @@ class Linearization:
             n += 1
 
         return path_0, path_1
+
+
+class GroundTruth:
+    def __init__(self, pathname, path_0, path_1, sources):
+        self.dat_0 = np.genfromtxt(path_0, delimiter=',', skip_header=True)
+        self.dat_1 = np.genfromtxt(path_1, delimiter=',', skip_header=True)
+        self.ref_nodes = np.genfromtxt(pkg_resources.resource_filename(pathname, "/src/Resources/default/ref_nodes.csv"), delimiter=',', skip_header=True)
+        self.sources = sources
+        self.pathname = pathname
+
+        path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_gt")
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed" % path)
+
+        path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_gt/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed" % path)
+
+    def gt_mapping(self):
+
+        n = 0
+
+        for dat in [self.dat_0, self.dat_1]:
+            path = pkg_resources.resource_filename(self.pathname, '/data/interim/pos_log_files_gt/{}/pos_log_file_gt_{}.csv'.format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
+            pos_log_file = open(path, 'w')
+            pos_log_file.write('x, y, frame_n, LED state, rel_pos, closest node, second closest node, gt_x, gt_y\n')
+
+            for k in range(len(dat)):
+                x4, y4 = np.nan, np.nan
+                if not np.isnan(dat[k, 5]):
+                    x1 = self.ref_nodes[int(dat[k, 5]) - 1, 0]
+                    y1 = self.ref_nodes[int(dat[k, 5]) - 1, 1]
+                    x2 = self.ref_nodes[int(dat[k, 6]) - 1, 0]
+                    y2 = self.ref_nodes[int(dat[k, 6]) - 1, 1]
+                    d = dat[k, 4] * distance(x1, y1, x2, y2)
+
+                    if x1 != x2:
+                        slope = (y2 - y1) / (x2 - x1)
+
+                        a = 1 + slope ** 2
+                        b = (-2 * x1 - 2 * slope ** 2 * x1)
+                        c = (x1 ** 2 + slope ** 2 * x1 ** 2 - d ** 2)
+                        if x1 >= x2:
+                            x4 = (-b - np.sqrt(b ** 2 - 4 * a * c)) / (2 * a)
+                        elif x1 <= x2:
+                            x4 = (-b + np.sqrt(b ** 2 - 4 * a * c)) / (2 * a)
+                        y4 = slope * (x4 - x1) + y1
+
+                    elif x1 == x2:
+                        x4 = x1
+                        if y1 > y2:
+                            y4 = y1 - d
+                        elif y1 < y2:
+                            y4 = y1 + d
+
+                pos_log_file.write('{}, {}, {}, {}, {}, {}, {}, {}, {}\n'.format(dat[k, 0], dat[k, 1], dat[k, 2], dat[k, 3], dat[k, 4], dat[k, 5], dat[k, 6], x4, y4))
+
+            n += 1
 
 
 # Calculation of the Homography matrix and remapping of node and LED position for the new videos
@@ -566,7 +624,9 @@ class TrialCut:
                     self.dat_0f = self.dat_0[self.log_onsets[i]:self.log_offsets[i]]
                     self.dat_1f = self.dat_1[self.log_onsets[i]:self.log_offsets[i]]
 
-                    if not self.log_onsets[i] == self.log_offsets[i]:
+                    # Sometimes experimenters double click the physical clicker by mistake, these 'trials'
+                    # get cut out immediately; it is assumed no trial will take less than 5 (time aligned) frames
+                    if not self.log_offsets[i]-self.log_onsets[i] <= 5:
 
                         np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node", comments='')
                         np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node", comments='')

@@ -54,7 +54,7 @@ class OfflineHextrack:
 
         # Initiation of the Grabbers and Trackers and creation of csv log file
         self.grabber = Grabber(src)
-        self.tracker = Tracker(cfg, pos_log_file=open(self.path, 'w'), name=__name__, LED_pos=LED_pos, LED_tresholds=LED_tresholds)
+        self.tracker = Tracker(cfg, pos_log_file=open(self.path, 'w'), name=__name__, LED_pos=LED_pos, LED_thresholds=LED_tresholds)
 
         logging.debug('HexTrack initialization done!')
 

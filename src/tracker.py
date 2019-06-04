@@ -40,7 +40,7 @@ def distance(x1, y1, x2, y2):
 # Simple tracking of the mouse position on basis of filtering out background and finding the biggest blob in the filter
 # (which would be the mouse)
 class Tracker:
-    def __init__(self, cfg, LED_pos, LED_tresholds, idx=0, thresh_mask=100, thresh_detect=35, pos_log_file=None,
+    def __init__(self, cfg, LED_pos, LED_thresholds, idx=0, thresh_mask=100, thresh_detect=35, pos_log_file=None,
                  name=__name__):
         super().__init__()
         self.id = idx
@@ -49,8 +49,8 @@ class Tracker:
         self.name = name
 
         self.thresh_detect = 255 - thresh_detect
-        self.thresh_led_0 = LED_tresholds[0]
-        self.thresh_led_1 = LED_tresholds[1]
+        self.thresh_led_0 = LED_thresholds[0]
+        self.thresh_led_1 = LED_thresholds[1]
 
         self.n_frames = 0
         self.frame = None
