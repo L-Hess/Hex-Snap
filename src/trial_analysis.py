@@ -5,6 +5,7 @@ import os
 import io
 import base64
 import urllib
+import codecs
 
 from src.validation import Validate
 
@@ -15,15 +16,16 @@ def distance(x1, y1, x2, y2):
     return r
 
 def fig2html(fig):
-  buf = io.BytesIO()
-  plt.savefig(buf, format='png', bbox_inches='tight')
-  buf.seek(0)
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
 
-  string = base64.b64encode(buf.read())
+    string = base64.b64encode(buf.read())
 
-  uri = 'data:image/png;base64,' + urllib.parse.quote(string)
-  html = '<img src = "{}"/>'.format(uri)
-  return html
+    uri = 'data:image/png;base64,' + urllib.parse.quote(string)
+    html = '<img src = "{}"/>'.format(uri)
+
+    return html
 
 
 class TrialDisplay:
@@ -32,6 +34,8 @@ class TrialDisplay:
         self.path_vid_1 = paths[1]
         self.log_path = paths[2]
         self.pathname = pathname
+
+        max_dist_log, mean_dist_log = [], []
 
         path = pkg_resources.resource_filename(self.pathname, "/data/processed/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
         if os.path.exists(path):
@@ -48,39 +52,49 @@ class TrialDisplay:
                         validate = Validate(path_0, path_1)
                         time_diff = validate.time_alignment_check()
                         dist_diff = validate.gt_distance_check()
+                        cleaned_dist = [x for x in dist_diff if str(x) != 'nan']
+                        max_dist, mean_dist = np.nan, np.nan
+                        if cleaned_dist:
+                            max_dist = max(cleaned_dist)
+                            mean_dist = np.mean(cleaned_dist)
+                            max_dist_log.append(max_dist)
+                            mean_dist_log.append(mean_dist)
 
                         n = int(dir.replace("trial_", ""))
 
-                        TrialDisplay.make_html(self, savepath, time_diff, dist_diff)
-                        TrialDisplay.make_summary_html(self, path, n, time_diff, dist_diff)
+                        TrialDisplay.make_html(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
 
+        TrialDisplay.make_summary_html(self, pathname, path, max_dist_log, mean_dist_log)
 
-    def make_html(self, savepath, time_align, gt_dist):
+    def make_html(self, savepath, time_align, gt_dist, max_dist, mean_dist, n):
+
         report = ''
         with open('{}/ANALYSIS_REPORT.html'.format(savepath), 'w') as rf:
             rf.write(report)
             report = ''
 
+        max_time = max(time_align)
+        mean_time = np.mean(time_align)
+
+        report += '<B> Trial {} <B>'.format(n) + '<br>'
+
         fig_1 = plt.plot(time_align)
         report += '<B> Time alignment <B>' + '<br>'
         report += fig2html(fig_1) + '<br>'
+        report += '<i> Maximum time dilation between sources = {} <i>'.format(max_time) + '<br>'
+        report += '<i> Average time dilation between sources = {} <i>'.format(mean_time) + '<br>'
 
         plt.clf()
 
-        cleaned_dist = [x for x in gt_dist if str(x) != 'nan']
-        if cleaned_dist:
-            max_dist = max(cleaned_dist)
-            mean_dist = np.mean(cleaned_dist)
+        if not np.isnan(max_dist):
+            fig_2 = plt.plot(gt_dist, 'o')
+            plt.axis([0, len(gt_dist), 0, max_dist+int(max_dist/5)])
+            report += '<B> Ground truth distance between sources <B>' + '<br>'
+            report += fig2html(fig_2) + '<br>'
+            report += '<i> Maximum distance between sources = {} <i>'.format(max_dist) + '<br>'
+            report += '<i> Average distance between sources = {} <i>'.format(mean_dist) + '<br>'
 
-            if not np.isnan(max_dist):
-                fig_2 = plt.plot(gt_dist, 'o')
-                plt.axis([0, len(gt_dist), 0, max_dist+int(max_dist/5)])
-                report += '<B> Ground truth distance between sources <B>' + '<br>'
-                report += fig2html(fig_2) + '<br>'
-                report += '<i> Maximum distance between sources = {} <i>'.format(max_dist) + '<br>'
-                report += '<i> Average distance between sources = {} <i>'.format(mean_dist) + '<br>'
-
-                plt.clf()
+            plt.clf()
 
         else:
             report += '<B> Ground truth distance between sources <B>' + '<br>' + '<br>'
@@ -90,9 +104,69 @@ class TrialDisplay:
             rf.write(report)
             report = ''
 
-    def make_summary_html(self, savepath, trial_n, time_align, gt_dist):
+    def make_summary_html(self, pathname, path, max_dist_log, mean_dist_log):
+
+        max_dist = max(max_dist_log)
+        mean_dist = np.mean(mean_dist_log)
+
+        origin_path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_gt/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
+        val = Validate(origin_path + '/pos_log_file_gt_0.csv', origin_path +'/pos_log_file_gt_1.csv')
+        time_series = val.time_alignment_check()
+        dist_series = val.gt_distance_check()
+
+        max_time_series = max(time_series)
+        mean_time_series = np.mean(time_series)
+
+        cleaned_dist = [x for x in dist_series if str(x) != 'nan']
+        max_dist_series, mean_dist_series = np.nan, np.nan
+        if cleaned_dist:
+            max_dist_series = max(cleaned_dist)
+            mean_dist_series = np.mean(cleaned_dist)
+
         report = ''
-        with open('{}/SUMMARY_ANALYSIS_REPORT.html'.format(savepath), 'w') as rf:
+        with open('{}/ANALYSIS_REPORT_SUMMARY.html'.format(path), 'w') as rf:
+            rf.write(report)
+            report = ''
+
+        report += '<B> Summary <B>' + '<br>'
+
+        fig_1 = plt.plot(time_series)
+        report += '<B> Time alignment whole video <B>' + '<br>'
+        report += fig2html(fig_1) + '<br>'
+        report += '<br>'
+        report += '<i> Maximum time dilation between sources = {} <i>'.format(max_time_series) + '<br>'
+        report += '<i> Average time dilation between sources = {} <i>'.format(mean_time_series) + '<br>'
+        report += '<br>'
+
+        plt.clf()
+
+        if not np.isnan(max_dist):
+            fig_2 = plt.plot(dist_series, 'o')
+            plt.axis([0, len(dist_series), 0, max_dist+int(max_dist_series/5)])
+            report += '<B> Ground truth distance between sources <B>' + '<br>'
+            report += fig2html(fig_2) + '<br>'
+            report += '<br>'
+            report += '<i> Maximum distance between sources across whole video = {} <i>'.format(max_dist_series) + '<br>'
+            report += '<i> Average distance between sources across whole video = {} <i>'.format(mean_dist_series) + '<br>'
+            report += '<br>'
+            report += '<i> Maximum distance between sources across all trials = {} <i>'.format(max_dist) + '<br>'
+            report += '<i> Average distance between sources across all trials = {} <i>'.format(mean_dist) + '<br>'
+            report += '<br>'
+
+            plt.clf()
+
+        if os.path.exists(path):
+            for dirs, subdirs, files in os.walk(path):
+                for file in files:
+                        if file.endswith('ANALYSIS_REPORT.html'):
+                            filepath = os.path.join(path, dirs, file)
+                            if os.path.exists(filepath):
+                                with open(filepath) as f:
+                                    html = f.readlines()[0]
+                                    report += html
+                                    report += '<br>'
+
+        with open('{}/ANALYSIS_REPORT_SUMMARY.html'.format(path), 'w') as rf:
             rf.write(report)
             report = ''
 

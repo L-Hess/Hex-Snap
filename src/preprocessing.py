@@ -99,8 +99,11 @@ class timecorrect:
                 self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
                 self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
 
-        np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state", comments='')
-        np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state", comments='')
+        with open(self.path_0, 'wb') as f:
+            np.savetxt(f, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state", comments='')
+        with open(self.path_1, 'wb') as f:
+            np.savetxt(f, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state", comments='')
+
 
 
 class Linearization:
