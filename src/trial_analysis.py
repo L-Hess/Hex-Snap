@@ -35,6 +35,9 @@ class TrialDisplay:
         self.log_path = paths[2]
         self.pathname = pathname
 
+        self.ref_nodes_path = pkg_resources.resource_filename(pathname, '/src/Resources/default/ref_nodes.csv')
+        self.ref_nodes = np.genfromtxt(self.ref_nodes_path, delimiter=',', skip_header=True)
+
         max_dist_log, mean_dist_log = [], []
 
         path = pkg_resources.resource_filename(self.pathname, "/data/processed/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
@@ -46,130 +49,72 @@ class TrialDisplay:
                             summary_log
                         except UnboundLocalError:
                             summary_log = np.zeros((2, len(subdirs)))
-                        path_0 = os.path.join(path, dir, 'position_log_files', 'pos_log_file_0.csv')
-                        path_1 = os.path.join(path, dir, 'position_log_files', 'pos_log_file_1.csv')
+                        data_path = os.path.join(path, dir, 'position_log_files', 'pos_log_file.csv')
                         savepath = os.path.join(path, dir)
-                        validate = Validate(path_0, path_1)
-                        time_diff = validate.time_alignment_check()
-                        dist_diff = validate.gt_distance_check()
-                        cleaned_dist = [x for x in dist_diff if str(x) != 'nan']
-                        max_dist, mean_dist = np.nan, np.nan
-                        if cleaned_dist:
-                            max_dist = max(cleaned_dist)
-                            mean_dist = np.mean(cleaned_dist)
-                            max_dist_log.append(max_dist)
-                            mean_dist_log.append(mean_dist)
+
+                        lines = TrialDisplay.gt_map(self)
 
                         n = int(dir.replace("trial_", ""))
 
-                        TrialDisplay.make_html(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
+                        TrialDisplay.make_html(self, savepath, data_path, lines, n)
 
-        TrialDisplay.make_summary_html(self, pathname, path, max_dist_log, mean_dist_log)
-
-    def make_html(self, savepath, time_align, gt_dist, max_dist, mean_dist, n):
+    def make_html(self, savepath, data_path, lines, n):
+        data = np.genfromtxt(data_path, delimiter=',', skip_header=True)
 
         report = ''
         with open('{}/ANALYSIS_REPORT.html'.format(savepath), 'w') as rf:
             rf.write(report)
             report = ''
-
-        max_time = max(time_align)
-        mean_time = np.mean(time_align)
 
         report += '<B> Trial {} <B>'.format(n) + '<br>'
 
-        fig_1 = plt.plot(time_align)
-        report += '<B> Time alignment <B>' + '<br>'
+        fig_1 = plt.scatter(self.ref_nodes[:, 0], self.ref_nodes[:, 1])
+        plt.plot(*lines, 'blue')
+        plt.plot(data[:, 1], data[:, 2], 'o', color='red')
+        report += '<B> Ground truth <B>' + '<br>'
         report += fig2html(fig_1) + '<br>'
-        report += '<i> Maximum time dilation between sources = {} <i>'.format(max_time) + '<br>'
-        report += '<i> Average time dilation between sources = {} <i>'.format(mean_time) + '<br>'
+        report += '<br>'
 
         plt.clf()
-
-        if not np.isnan(max_dist):
-            fig_2 = plt.plot(gt_dist, 'o')
-            plt.axis([0, len(gt_dist), 0, max_dist+int(max_dist/5)])
-            report += '<B> Ground truth distance between sources <B>' + '<br>'
-            report += fig2html(fig_2) + '<br>'
-            report += '<i> Maximum distance between sources = {} <i>'.format(max_dist) + '<br>'
-            report += '<i> Average distance between sources = {} <i>'.format(mean_dist) + '<br>'
-
-            plt.clf()
-
-        else:
-            report += '<B> Ground truth distance between sources <B>' + '<br>' + '<br>'
-            report += '<i> No frame with mouse present in both sources <i>' + '<br>'
 
         with open('{}/ANALYSIS_REPORT.html'.format(savepath), 'w') as rf:
             rf.write(report)
             report = ''
 
-    def make_summary_html(self, pathname, path, max_dist_log, mean_dist_log):
+    def gt_map(self):
+        lines = [(self.ref_nodes[0, 0], self.ref_nodes[1, 0], self.ref_nodes[2, 0], self.ref_nodes[3, 0],
+                      self.ref_nodes[4, 0], self.ref_nodes[7, 0],
+                      self.ref_nodes[9, 0], self.ref_nodes[6, 0], self.ref_nodes[8, 0], self.ref_nodes[5, 0],
+                      self.ref_nodes[16, 0],
+                      self.ref_nodes[17, 0], self.ref_nodes[18, 0], self.ref_nodes[11, 0], self.ref_nodes[14, 0],
+                      self.ref_nodes[12, 0],
+                      self.ref_nodes[15, 0], self.ref_nodes[23, 0], self.ref_nodes[22, 0], self.ref_nodes[21, 0],
+                      self.ref_nodes[20, 0],
+                      self.ref_nodes[19, 0], self.ref_nodes[18, 0], self.ref_nodes[11, 0], self.ref_nodes[8, 0],
+                      self.ref_nodes[6, 0],
+                      self.ref_nodes[9, 0], self.ref_nodes[12, 0], self.ref_nodes[14, 0], self.ref_nodes[21, 0],
+                      self.ref_nodes[22, 0],
+                      self.ref_nodes[23, 0], self.ref_nodes[15, 0], self.ref_nodes[13, 0], self.ref_nodes[10, 0],
+                      self.ref_nodes[7, 0],
+                      self.ref_nodes[9, 0], self.ref_nodes[6, 0], self.ref_nodes[2, 0], self.ref_nodes[1, 0],
+                      self.ref_nodes[0, 0], self.ref_nodes[5, 0]),
+                     (self.ref_nodes[0, 1], self.ref_nodes[1, 1], self.ref_nodes[2, 1], self.ref_nodes[3, 1],
+                      self.ref_nodes[4, 1], self.ref_nodes[7, 1],
+                      self.ref_nodes[9, 1], self.ref_nodes[6, 1], self.ref_nodes[8, 1], self.ref_nodes[5, 1],
+                      self.ref_nodes[16, 1],
+                      self.ref_nodes[17, 1], self.ref_nodes[18, 1], self.ref_nodes[11, 1], self.ref_nodes[14, 1],
+                      self.ref_nodes[12, 1],
+                      self.ref_nodes[15, 1], self.ref_nodes[23, 1], self.ref_nodes[22, 1], self.ref_nodes[21, 1],
+                      self.ref_nodes[20, 1],
+                      self.ref_nodes[19, 1], self.ref_nodes[18, 1], self.ref_nodes[11, 1], self.ref_nodes[8, 1],
+                      self.ref_nodes[6, 1],
+                      self.ref_nodes[9, 1], self.ref_nodes[12, 1], self.ref_nodes[14, 1], self.ref_nodes[21, 1],
+                      self.ref_nodes[22, 1],
+                      self.ref_nodes[23, 1], self.ref_nodes[15, 1], self.ref_nodes[13, 1], self.ref_nodes[10, 1],
+                      self.ref_nodes[7, 1],
+                      self.ref_nodes[9, 1], self.ref_nodes[6, 1], self.ref_nodes[2, 1], self.ref_nodes[1, 1],
+                      self.ref_nodes[0, 1], self.ref_nodes[5, 1])]
 
-        max_dist = max(max_dist_log)
-        mean_dist = np.mean(mean_dist_log)
-
-        origin_path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_gt/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
-        val = Validate(origin_path + '/pos_log_file_gt_0.csv', origin_path +'/pos_log_file_gt_1.csv')
-        time_series = val.time_alignment_check()
-        dist_series = val.gt_distance_check()
-
-        max_time_series = max(time_series)
-        mean_time_series = np.mean(time_series)
-
-        cleaned_dist = [x for x in dist_series if str(x) != 'nan']
-        max_dist_series, mean_dist_series = np.nan, np.nan
-        if cleaned_dist:
-            max_dist_series = max(cleaned_dist)
-            mean_dist_series = np.mean(cleaned_dist)
-
-        report = ''
-        with open('{}/ANALYSIS_REPORT_SUMMARY.html'.format(path), 'w') as rf:
-            rf.write(report)
-            report = ''
-
-        report += '<B> Summary <B>' + '<br>'
-
-        fig_1 = plt.plot(time_series)
-        report += '<B> Time alignment whole video <B>' + '<br>'
-        report += fig2html(fig_1) + '<br>'
-        report += '<br>'
-        report += '<i> Maximum time dilation between sources = {} <i>'.format(max_time_series) + '<br>'
-        report += '<i> Average time dilation between sources = {} <i>'.format(mean_time_series) + '<br>'
-        report += '<br>'
-
-        plt.clf()
-
-        if not np.isnan(max_dist):
-            fig_2 = plt.plot(dist_series, 'o')
-            plt.axis([0, len(dist_series), 0, max_dist+int(max_dist_series/5)])
-            report += '<B> Ground truth distance between sources <B>' + '<br>'
-            report += fig2html(fig_2) + '<br>'
-            report += '<br>'
-            report += '<i> Maximum distance between sources across whole video = {} <i>'.format(max_dist_series) + '<br>'
-            report += '<i> Average distance between sources across whole video = {} <i>'.format(mean_dist_series) + '<br>'
-            report += '<br>'
-            report += '<i> Maximum distance between sources across all trials = {} <i>'.format(max_dist) + '<br>'
-            report += '<i> Average distance between sources across all trials = {} <i>'.format(mean_dist) + '<br>'
-            report += '<br>'
-
-            plt.clf()
-
-        if os.path.exists(path):
-            for dirs, subdirs, files in os.walk(path):
-                for file in files:
-                        if file.endswith('ANALYSIS_REPORT.html'):
-                            filepath = os.path.join(path, dirs, file)
-                            if os.path.exists(filepath):
-                                with open(filepath) as f:
-                                    html = f.readlines()[0]
-                                    report += html
-                                    report += '<br>'
-
-        with open('{}/ANALYSIS_REPORT_SUMMARY.html'.format(path), 'w') as rf:
-            rf.write(report)
-            report = ''
-
-
+        return lines
 
 

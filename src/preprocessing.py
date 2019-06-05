@@ -345,6 +345,8 @@ class GroundTruth:
 
             pos_log_file.write("{}, {}, {}\n".format(frame_n, x, y))
 
+        return path
+
 
 # Calculation of the Homography matrix and remapping of node and LED position for the new videos
 class Homography:
@@ -630,6 +632,7 @@ class TrialCut:
         self.log_path = paths[2]
         self.dat_0 = np.genfromtxt(data[0], delimiter=',', skip_header=False)
         self.dat_1 = np.genfromtxt(data[1], delimiter=',', skip_header=False)
+        self.dat = np.genfromtxt(data[2], delimiter=',', skip_header=True)
 
     def log_data(self):
         vid_t = (3600 * int(self.path_vid_0[len(self.path_vid_0)-18:len(self.path_vid_0)-16]) + 60 * int(self.path_vid_0[len(self.path_vid_0)-15:len(self.path_vid_0)-13]) + int(
@@ -684,7 +687,6 @@ class TrialCut:
         for i in range(len(self.log_onsets)):
 
             if not np.isnan(self.log_onsets[i]) and not np.isnan(self.log_offsets[i]):
-                # print(self.log_onsets[i], self.log_offsets[i])
 
                 path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}".format(
                     self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
@@ -703,17 +705,14 @@ class TrialCut:
                         print("Creation of the directory %s failed" % path)
 
                 if os.path.exists(path):
-                    self.path_0 = path + '/pos_log_file_0.csv'
-                    self.path_1 = path + '/pos_log_file_1.csv'
+                    self.path = path + '/pos_log_file.csv'
 
-                    self.dat_0f = self.dat_0[self.log_onsets[i]:self.log_offsets[i]]
-                    self.dat_1f = self.dat_1[self.log_onsets[i]:self.log_offsets[i]]
+                    self.dat_f = self.dat[self.log_onsets[i]:self.log_offsets[i]]
 
                     # Sometimes experimenters double click the physical clicker by mistake, these 'trials'
                     # get cut out immediately; it is assumed no trial will take less than 5 (time aligned) frames
                     if not self.log_offsets[i]-self.log_onsets[i] <= 5:
 
-                        np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
-                        np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
+                        np.savetxt(self.path, self.dat_f, delimiter=",", header="frame_n, x, y", comments='')
 
                         n += 1
