@@ -105,7 +105,6 @@ class timecorrect:
             np.savetxt(f, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state", comments='')
 
 
-
 class Linearization:
     def __init__(self, pathname, sources):
 
@@ -221,6 +220,20 @@ class GroundTruth:
             except OSError:
                 print("Creation of the directory %s failed" % path)
 
+        path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_stitched")
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed" % path)
+
+        path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_stitched/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed" % path)
+
         path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_gt/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         if not os.path.exists(path):
             try:
@@ -268,13 +281,69 @@ class GroundTruth:
                 pos_log_file.write('{}, {}, {}, {}, {}, {}, {}, {}, {}\n'.format(dat[k, 0], dat[k, 1], dat[k, 2], dat[k, 3], dat[k, 4], dat[k, 5], dat[k, 6], x4, y4))
 
             if n == 0:
-                path_0 = path
+                self.path_0 = path
             if n == 1:
-                path_1 = path
+                self.path_1 = path
 
             n += 1
 
-        return path_0, path_1
+    def gt_stitch(self):
+        path = pkg_resources.resource_filename(self.pathname,
+                                               '/data/interim/pos_log_files_stitched/{}/pos_log_file_stitched.csv'.format(
+                                                   self.sources[0][len(self.sources[0]) - 29:len(self.sources[0]) - 10]))
+        pos_log_file = open(path, 'w')
+        pos_log_file.write('frame_n, x, y\n')
+
+        dat_0 = np.genfromtxt(self.path_0, delimiter=',', skip_header=True)
+        dat_1 = np.genfromtxt(self.path_1, delimiter=',', skip_header=True)
+
+        dist = np.nan
+        x = np.nan
+        y = np.nan
+        x_log = []
+        y_log = []
+
+        for i in range(len(dat_0)):
+            frame_n = i
+
+            if not np.isnan(dat_0[i, 0]) and not np.isnan(dat_1[i, 0]):
+                dist = distance(dat_0[i, 7], dat_0[i, 8], dat_1[i, 7], dat_1[i, 8])
+
+            elif not np.isnan(dat_0[i, 0]) and np.isnan(dat_1[i, 0]):
+                x = dat_0[i, 7]
+                y = dat_0[i, 8]
+                dist = np.nan
+
+            elif np.isnan(dat_0[i, 0]) and not np.isnan(dat_1[i, 0]):
+                x = dat_1[i, 7]
+                y = dat_1[i, 8]
+                dist = np.nan
+
+            if not np.isnan(dist):
+                x = (dat_0[i, 7] + dat_1[i, 7])/2
+                y = (dat_0[i, 8] + dat_0[i, 8])/2
+                dist = np.nan
+
+            if dist >= 80:
+                dist_0 = distance(dat_0[i, 7], dat_0[i, 8], x_log[len(x_log)], y_log[len(y_log)])
+                dist_1 = distance(dat_1[i, 7], dat_1[i, 8], x_log[len(x_log)], y_log[len(y_log)])
+                if dist_0 < dist_1:
+                    x = dat_0[i, 7]
+                    y = dat_0[i, 8]
+                    dist = np.nan
+                elif dist_0 > dist_1:
+                    x = dat_1[i, 7]
+                    y = dat_1[i, 8]
+                    dist = np.nan
+                else:
+                    x = (dat_0[i, 7] + dat_1[i, 7]) / 2
+                    y = (dat_0[i, 8] + dat_0[i, 8]) / 2
+                    dist = np.nan
+
+            x_log.append(x)
+            y_log.append(y)
+
+            pos_log_file.write("{}, {}, {}\n".format(frame_n, x, y))
 
 
 # Calculation of the Homography matrix and remapping of node and LED position for the new videos
