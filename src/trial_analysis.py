@@ -119,8 +119,8 @@ class TrialDisplay:
         return lines
 
     def path_metrics(self):
-        closest_nodes = self.data[:, 3]
-        second_closest_nodes = self.data[:, 4]
+        closest_nodes = [x for x in self.data[:, 3] if str(x) != 'nan']
+        second_closest_nodes = [x for x in self.data[:, 4] if str(x) != 'nan']
 
         path_log = []
         for i in range(len(closest_nodes)):
@@ -128,7 +128,7 @@ class TrialDisplay:
                 path_log.append(closest_nodes[i])
             else:
                 if path_log[len(path_log)-1] != closest_nodes[i]:
-                    path_log.append(closest_nodes[i])
+                    path_log.append(int(closest_nodes[i]))
 
         print(path_log)
 
