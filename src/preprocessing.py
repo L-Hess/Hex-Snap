@@ -292,7 +292,7 @@ class GroundTruth:
                                                '/data/interim/pos_log_files_stitched/{}/pos_log_file_stitched.csv'.format(
                                                    self.sources[0][len(self.sources[0]) - 29:len(self.sources[0]) - 10]))
         pos_log_file = open(path, 'w')
-        pos_log_file.write('frame_n, x, y\n')
+        pos_log_file.write('frame_n, x, y, first node, second node\n')
 
         dat_0 = np.genfromtxt(self.path_0, delimiter=',', skip_header=True)
         dat_1 = np.genfromtxt(self.path_1, delimiter=',', skip_header=True)
@@ -302,6 +302,9 @@ class GroundTruth:
         y = np.nan
         x_log = []
         y_log = []
+
+        node_first = np.nan
+        node_second = np.nan
 
         for i in range(len(dat_0)):
             frame_n = i
@@ -313,16 +316,24 @@ class GroundTruth:
                 x = dat_0[i, 7]
                 y = dat_0[i, 8]
                 dist = np.nan
+                node_first = dat_0[i, 5]
+                node_second = dat_0[i, 6]
 
             elif np.isnan(dat_0[i, 0]) and not np.isnan(dat_1[i, 0]):
                 x = dat_1[i, 7]
                 y = dat_1[i, 8]
                 dist = np.nan
+                node_first = dat_1[i, 5]
+                node_second = dat_1[i, 6]
 
             if not np.isnan(dist):
                 x = (dat_0[i, 7] + dat_1[i, 7])/2
                 y = (dat_0[i, 8] + dat_0[i, 8])/2
                 dist = np.nan
+
+                # This needs hotfixing, since now closest node is always fixed
+                node_first = dat_0[i, 5]
+                node_second = dat_0[i, 6]
 
             if dist >= 80:
                 dist_0 = distance(dat_0[i, 7], dat_0[i, 8], x_log[len(x_log)], y_log[len(y_log)])
@@ -331,19 +342,28 @@ class GroundTruth:
                     x = dat_0[i, 7]
                     y = dat_0[i, 8]
                     dist = np.nan
+                    node_first = dat_0[i, 5]
+                    node_second = dat_0[i, 6]
                 elif dist_0 > dist_1:
                     x = dat_1[i, 7]
                     y = dat_1[i, 8]
                     dist = np.nan
+                    node_first = dat_1[i, 5]
+                    node_second = dat_1[i, 6]
                 else:
                     x = (dat_0[i, 7] + dat_1[i, 7]) / 2
                     y = (dat_0[i, 8] + dat_0[i, 8]) / 2
                     dist = np.nan
+                    node_first = dat_0[i, 5]
+                    node_second = dat_0[i, 6]
 
             x_log.append(x)
             y_log.append(y)
 
-            pos_log_file.write("{}, {}, {}\n".format(frame_n, x, y))
+            pos_log_file.write("{}, {}, {}, {}, {}\n".format(frame_n, x, y, node_first, node_second))
+
+            node_first = np.nan
+            node_second = np.nan
 
         return path
 
@@ -713,6 +733,6 @@ class TrialCut:
                     # get cut out immediately; it is assumed no trial will take less than 5 (time aligned) frames
                     if not self.log_offsets[i]-self.log_onsets[i] <= 5:
 
-                        np.savetxt(self.path, self.dat_f, delimiter=",", header="frame_n, x, y", comments='')
+                        np.savetxt(self.path, self.dat_f, delimiter=",", header="frame_n, x, y, first node, second node", comments='')
 
                         n += 1

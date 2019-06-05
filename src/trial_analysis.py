@@ -50,16 +50,17 @@ class TrialDisplay:
                         except UnboundLocalError:
                             summary_log = np.zeros((2, len(subdirs)))
                         data_path = os.path.join(path, dir, 'position_log_files', 'pos_log_file.csv')
+                        self.data = np.genfromtxt(data_path, delimiter=',', skip_header=True)
                         savepath = os.path.join(path, dir)
 
                         lines = TrialDisplay.gt_map(self)
+                        TrialDisplay.path_metrics(self)
 
                         n = int(dir.replace("trial_", ""))
 
-                        TrialDisplay.make_html(self, savepath, data_path, lines, n)
+                        TrialDisplay.make_html(self, savepath, lines, n)
 
-    def make_html(self, savepath, data_path, lines, n):
-        data = np.genfromtxt(data_path, delimiter=',', skip_header=True)
+    def make_html(self, savepath, lines, n):
 
         report = ''
         with open('{}/ANALYSIS_REPORT.html'.format(savepath), 'w') as rf:
@@ -70,7 +71,7 @@ class TrialDisplay:
 
         fig_1 = plt.scatter(self.ref_nodes[:, 0], self.ref_nodes[:, 1])
         plt.plot(*lines, 'blue')
-        plt.plot(data[:, 1], data[:, 2], 'o', color='red')
+        plt.plot(self.data[:, 1], self.data[:, 2], 'o', color='red')
         report += '<B> Ground truth <B>' + '<br>'
         report += fig2html(fig_1) + '<br>'
         report += '<br>'
@@ -117,4 +118,17 @@ class TrialDisplay:
 
         return lines
 
+    def path_metrics(self):
+        closest_nodes = self.data[:, 3]
+        second_closest_nodes = self.data[:, 4]
+
+        path_log = []
+        for i in range(len(closest_nodes)):
+            if i == 0:
+                path_log.append(closest_nodes[i])
+            else:
+                if path_log[len(path_log)-1] != closest_nodes[i]:
+                    path_log.append(closest_nodes[i])
+
+        print(path_log)
 
