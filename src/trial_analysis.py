@@ -54,7 +54,7 @@ class TrialDisplay:
                         savepath = os.path.join(path, dir)
 
                         lines = TrialDisplay.gt_map(self)
-                        TrialDisplay.path_metrics(self)
+                        # TrialDisplay.path_metrics(self)
 
                         n = int(dir.replace("trial_", ""))
 
