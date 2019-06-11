@@ -11,6 +11,7 @@ from tqdm import tqdm
 from moviepy.editor import VideoFileClip
 import numpy as np
 import glob
+from matplotlib import pyplot as plt
 
 from src.tracker import Tracker
 from src.preprocessing import timecorrect
@@ -22,7 +23,7 @@ from src.trial_analysis import TrialDisplay
 from src.validation import Validate
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = True
+ONLY_ANALYSIS = False
 
 
 def find_nearest(array, value):
@@ -94,17 +95,17 @@ class OfflineHextrack:
 
             # At the second frame, show computer-generated mask
             # If not sufficient, gives possibility to input user-generated mask
-            # if self.frame_idx == 1:
-            #     path = pkg_resources.resource_filename(__name__, '/output/Masks/mask_{}.png'.format(n))
-            #     mask = cv2.imread(path)
-            #     plt.figure('Mask check')
-            #     plt.imshow(mask)
-            #     plt.show()
-            #     mask_check = input("If the mask is sufficient, enter y: ")
-            #     if mask_check != 'y':
-            #         input('Please upload custom mask under the name new_mask.png to the output folder and press enter')
-            #         self.made_mask = cv2.imread('new_mask.png', 0)
-            #         self.mask_init = False
+            if self.frame_idx == 1:
+                path = pkg_resources.resource_filename(__name__, '/Data/Raw/Masks/mask_{}.png'.format(n))
+                mask = cv2.imread(path)
+                plt.figure('Mask check')
+                plt.imshow(mask)
+                plt.show()
+                mask_check = input("If the mask is sufficient, enter y: ")
+                if mask_check != 'y':
+                    input('Please upload custom mask under the name new_mask.png to the output folder and press enter')
+                    self.made_mask = cv2.imread('new_mask.png', 0)
+                    self.mask_init = False
             self.frame_idx += 1
         self.tracker.close()
         pbar.close()

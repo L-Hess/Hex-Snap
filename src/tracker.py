@@ -159,7 +159,7 @@ class Tracker:
 
         # On the first frame, save mask
         if self.id_ == 0:
-            path = pkg_resources.resource_filename(self.name, '/output/Masks/mask_{}.png'.format(n))
+            path = pkg_resources.resource_filename(self.name, '/Data/raw/Masks/mask_{}.png'.format(n))
             cv2.imwrite(path, self.mask_frame)
 
         # Apply mask to frame
