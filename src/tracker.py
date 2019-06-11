@@ -133,6 +133,14 @@ class Tracker:
         f_end = (self.id + 1) * self.height
         self.frame = frame[f_start:f_end, :]
 
+        if n == 0 and self.id_ == 428:
+            path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/frame_{}.png'.format(n))
+            cv2.imwrite(path, self.frame)
+
+        if n == 1 and self.id_ == 430:
+            path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/frame_{}.png'.format(n))
+            cv2.imwrite(path, self.frame)
+
         # Check if a mask is already present, if not, create a new mask
         if not self.has_mask:
             foi = cv2.cvtColor(self.frame, cv2.COLOR_RGB2GRAY)
@@ -160,6 +168,14 @@ class Tracker:
         # On the first frame, save mask
         if self.id_ == 0:
             path = pkg_resources.resource_filename(self.name, '/Data/raw/Masks/mask_{}.png'.format(n))
+            cv2.imwrite(path, self.mask_frame)
+
+        if n == 0 and self.id_ == 428:
+            path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/mask_{}.png'.format(n))
+            cv2.imwrite(path, self.mask_frame)
+
+        if n == 1 and self.id_ == 430:
+            path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/mask_{}.png'.format(n))
             cv2.imwrite(path, self.mask_frame)
 
         # Apply mask to frame
@@ -201,6 +217,28 @@ class Tracker:
             # center coordinates of contour
             self.search_window_size = max(SEARCH_WINDOW_SIZE, int(self.search_window_size * .75))
             cx, cy = centroid(largest_cnt)
+
+            self.frame_2 = self.frame
+
+            # contour = cv2.drawContours(self.frame, [largest_cnt], -1, (0, 0, 150), 2)
+            #
+            # if n == 0 and self.id_ == 428:
+            #     path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/contour_{}.png'.format(n))
+            #     cv2.imwrite(path, contour)
+            #
+            # if n == 1 and self.id_ == 430:
+            #     path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/contour_{}.png'.format(n))
+            #     cv2.imwrite(path, contour)
+
+            cv2.drawMarker(self.frame_2, (cx, cy), (0, 0, 150), markerType=cv2.MARKER_CROSS, markerSize=20, thickness=2, line_type=cv2.LINE_AA)
+
+            if n == 0 and self.id_ == 428:
+                path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/centroid_{}.png'.format(n))
+                cv2.imwrite(path, self.frame_2)
+
+            if n == 1 and self.id_ == 430:
+                path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/centroid_{}.png'.format(n))
+                cv2.imwrite(path, self.frame_2)
 
             # Save centroid location in results
             self.results.appendleft((cx, cy))

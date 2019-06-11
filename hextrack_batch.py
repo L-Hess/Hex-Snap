@@ -80,8 +80,8 @@ class OfflineHextrack:
 
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
-        pbar = tqdm(range(int(self.duration)))
-        # pbar = tqdm(range(5000))
+        # pbar = tqdm(range(int(self.duration)))
+        pbar = tqdm(range(500))
         for i in pbar:
             frame = self.grabber.next()
             if frame is None:
@@ -95,17 +95,17 @@ class OfflineHextrack:
 
             # At the second frame, show computer-generated mask
             # If not sufficient, gives possibility to input user-generated mask
-            if self.frame_idx == 1:
-                path = pkg_resources.resource_filename(__name__, '/Data/Raw/Masks/mask_{}.png'.format(n))
-                mask = cv2.imread(path)
-                plt.figure('Mask check')
-                plt.imshow(mask)
-                plt.show()
-                mask_check = input("If the mask is sufficient, enter y: ")
-                if mask_check != 'y':
-                    input('Please upload custom mask under the name new_mask.png to the output folder and press enter')
-                    self.made_mask = cv2.imread('new_mask.png', 0)
-                    self.mask_init = False
+            # if self.frame_idx == 1:
+            #     path = pkg_resources.resource_filename(__name__, '/Data/Raw/Masks/mask_{}.png'.format(n))
+            #     mask = cv2.imread(path)
+            #     plt.figure('Mask check')
+            #     plt.imshow(mask)
+            #     plt.show()
+            #     mask_check = input("If the mask is sufficient, enter y: ")
+            #     if mask_check != 'y':
+            #         input('Please upload custom mask under the name new_mask.png to the output folder and press enter')
+            #         self.made_mask = cv2.imread('new_mask.png', 0)
+            #         self.mask_init = False
             self.frame_idx += 1
         self.tracker.close()
         pbar.close()
