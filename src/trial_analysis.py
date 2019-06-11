@@ -5,7 +5,7 @@ import os
 import io
 import base64
 import urllib
-import codecs
+import networkx as nx
 
 from src.validation import Validate
 
@@ -14,6 +14,7 @@ from src.validation import Validate
 def distance(x1, y1, x2, y2):
     r = np.sqrt((x1-x2)**2+(y1-y2)**2)
     return r
+
 
 def fig2html(fig):
     buf = io.BytesIO()
@@ -40,6 +41,8 @@ class TrialDisplay:
 
         max_dist_log, mean_dist_log = [], []
 
+        flower_graph, node_positions = TrialDisplay.gt_map(self)
+
         path = pkg_resources.resource_filename(self.pathname, "/data/processed/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
         if os.path.exists(path):
             for dirs, subdirs, files in os.walk(path):
@@ -53,14 +56,13 @@ class TrialDisplay:
                         self.data = np.genfromtxt(data_path, delimiter=',', skip_header=True)
                         savepath = os.path.join(path, dir)
 
-                        lines = TrialDisplay.gt_map(self)
-                        # TrialDisplay.path_metrics(self)
+                        path_log, path_length, shortest_path_length = TrialDisplay.path_metrics(self, flower_graph, node_positions)
 
                         n = int(dir.replace("trial_", ""))
 
-                        TrialDisplay.make_html(self, savepath, lines, n)
+                        TrialDisplay.make_html(self, savepath, flower_graph, node_positions, n, path_log, path_length, shortest_path_length)
 
-    def make_html(self, savepath, lines, n):
+    def make_html(self, savepath, flower_graph, node_positions, n, path_log, path_length, shortest_path_length):
 
         report = ''
         with open('{}/ANALYSIS_REPORT.html'.format(savepath), 'w') as rf:
@@ -69,11 +71,17 @@ class TrialDisplay:
 
         report += '<B> Trial {} <B>'.format(n) + '<br>'
 
-        fig_1 = plt.scatter(self.ref_nodes[:, 0], self.ref_nodes[:, 1])
-        plt.plot(*lines, 'blue')
-        plt.plot(self.data[:, 1], self.data[:, 2], 'o', color='red')
+        mg = nx.Graph(flower_graph)
+        fig_1 = nx.draw_networkx(mg, pos=node_positions, nodecolor='r', edge_color='b', alpha=1, font_size=10)
+
+        plt.scatter(self.data[:, 1], self.data[:, 2], color='red')
+
         report += '<B> Ground truth <B>' + '<br>'
         report += fig2html(fig_1) + '<br>'
+        report += '<br>'
+        report += '<i> Path taken: {} <i>'.format(path_log) + '<br>'
+        report += '<i> Path length: {} <i>'.format(path_length) + '<br>'
+        report += '<i> Shortest possible path length: {} <i>'.format(shortest_path_length) + '<br>'
         report += '<br>'
 
         plt.clf()
@@ -83,52 +91,78 @@ class TrialDisplay:
             report = ''
 
     def gt_map(self):
-        lines = [(self.ref_nodes[0, 0], self.ref_nodes[1, 0], self.ref_nodes[2, 0], self.ref_nodes[3, 0],
-                      self.ref_nodes[4, 0], self.ref_nodes[7, 0],
-                      self.ref_nodes[9, 0], self.ref_nodes[6, 0], self.ref_nodes[8, 0], self.ref_nodes[5, 0],
-                      self.ref_nodes[16, 0],
-                      self.ref_nodes[17, 0], self.ref_nodes[18, 0], self.ref_nodes[11, 0], self.ref_nodes[14, 0],
-                      self.ref_nodes[12, 0],
-                      self.ref_nodes[15, 0], self.ref_nodes[23, 0], self.ref_nodes[22, 0], self.ref_nodes[21, 0],
-                      self.ref_nodes[20, 0],
-                      self.ref_nodes[19, 0], self.ref_nodes[18, 0], self.ref_nodes[11, 0], self.ref_nodes[8, 0],
-                      self.ref_nodes[6, 0],
-                      self.ref_nodes[9, 0], self.ref_nodes[12, 0], self.ref_nodes[14, 0], self.ref_nodes[21, 0],
-                      self.ref_nodes[22, 0],
-                      self.ref_nodes[23, 0], self.ref_nodes[15, 0], self.ref_nodes[13, 0], self.ref_nodes[10, 0],
-                      self.ref_nodes[7, 0],
-                      self.ref_nodes[9, 0], self.ref_nodes[6, 0], self.ref_nodes[2, 0], self.ref_nodes[1, 0],
-                      self.ref_nodes[0, 0], self.ref_nodes[5, 0]),
-                     (self.ref_nodes[0, 1], self.ref_nodes[1, 1], self.ref_nodes[2, 1], self.ref_nodes[3, 1],
-                      self.ref_nodes[4, 1], self.ref_nodes[7, 1],
-                      self.ref_nodes[9, 1], self.ref_nodes[6, 1], self.ref_nodes[8, 1], self.ref_nodes[5, 1],
-                      self.ref_nodes[16, 1],
-                      self.ref_nodes[17, 1], self.ref_nodes[18, 1], self.ref_nodes[11, 1], self.ref_nodes[14, 1],
-                      self.ref_nodes[12, 1],
-                      self.ref_nodes[15, 1], self.ref_nodes[23, 1], self.ref_nodes[22, 1], self.ref_nodes[21, 1],
-                      self.ref_nodes[20, 1],
-                      self.ref_nodes[19, 1], self.ref_nodes[18, 1], self.ref_nodes[11, 1], self.ref_nodes[8, 1],
-                      self.ref_nodes[6, 1],
-                      self.ref_nodes[9, 1], self.ref_nodes[12, 1], self.ref_nodes[14, 1], self.ref_nodes[21, 1],
-                      self.ref_nodes[22, 1],
-                      self.ref_nodes[23, 1], self.ref_nodes[15, 1], self.ref_nodes[13, 1], self.ref_nodes[10, 1],
-                      self.ref_nodes[7, 1],
-                      self.ref_nodes[9, 1], self.ref_nodes[6, 1], self.ref_nodes[2, 1], self.ref_nodes[1, 1],
-                      self.ref_nodes[0, 1], self.ref_nodes[5, 1])]
+        flower_graph = {1: [2, 6],
+                        2: [1, 3],
+                        3: [2, 4, 7],
+                        4: [3, 5],
+                        5: [4, 8],
+                        6: [1, 9, 17],
+                        7: [3, 9, 10],
+                        8: [5, 10, 11],
+                        9: [6, 7, 12],
+                        10: [7, 8, 13],
+                        11: [8, 14],
+                        12: [9, 15, 19],
+                        13: [10, 15, 16],
+                        14: [11, 16],
+                        15: [12, 13, 22],
+                        16: [13, 14, 24],
+                        17: [6, 18],
+                        18: [17, 19],
+                        19: [12, 18, 20],
+                        20: [19, 21],
+                        21: [20, 22],
+                        22: [15, 21, 23],
+                        23: [22, 24],
+                        24: [16, 23]}
 
-        return lines
+        node_positions = {}
+        with open(self.ref_nodes_path, 'r') as npf:
+            next(npf)
+            for line in npf:
+                x, y, nn = map(str.strip, line.split(','))
+                node_positions[int(nn)] = (int(float(x)), int(float(y)))
 
-    def path_metrics(self):
-        closest_nodes = [x for x in self.data[:, 3] if str(x) != 'nan']
-        second_closest_nodes = [x for x in self.data[:, 4] if str(x) != 'nan']
+        return flower_graph, node_positions
+
+    def path_metrics(self, flower_graph, node_positions):
+
+        closest_nodes = []
+
+        for _, x, y in self.data:
+
+            # Calculate the distance of each mouse position to all nodes
+            dist = distance(x, y, self.ref_nodes[:, 0],self.ref_nodes[:, 1])
+
+            # Finds the closest node and saves its position and node number
+            dist1, closest_node = np.min(dist), self.ref_nodes[np.argmin(dist), 2]
+            if np.isnan(dist1):
+                closest_node = np.nan
+
+            # Find the second closest node and save its position and node number
+            dist[np.argmin(dist)] = 1e12
+            dist2, second_closest_node = np.min(dist), self.ref_nodes[np.argmin(dist), 2]
+            if np.isnan(dist2):
+                second_closest_node = np.nan
+
+            closest_nodes.append(closest_node)
+
+        closest_nodes = [x for x in closest_nodes if str(x) != 'nan']
 
         path_log = []
         for i in range(len(closest_nodes)):
             if i == 0:
                 path_log.append(closest_nodes[i])
             else:
+
                 if path_log[len(path_log)-1] != closest_nodes[i]:
                     path_log.append(int(closest_nodes[i]))
 
-        print(path_log)
+        mg = nx.Graph(flower_graph)
+        nx.spring_layout(mg, pos=node_positions)
+
+        path_length = len(path_log)
+        shortest_path_length = len(nx.shortest_path(mg, path_log[0], path_log[len(path_log)-1]))
+
+        return path_log, path_length, shortest_path_length
 
