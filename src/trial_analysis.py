@@ -62,7 +62,7 @@ class TrialDisplay:
 
                         n = int(dir.replace("trial_", ""))
 
-                        TrialDisplay.make_html(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
+                        # TrialDisplay.make_html(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
 
         TrialDisplay.make_summary_html(self, pathname, path, max_dist_log, mean_dist_log)
 
@@ -79,6 +79,20 @@ class TrialDisplay:
         report += '<B> Trial {} <B>'.format(n) + '<br>'
 
         fig_1 = plt.plot(time_align)
+        plt.title('Time dilation after time alignment across whole video')
+        plt.xlabel('Index of LED-onset')
+        plt.ylabel('Frame difference between top and bottom sources')
+        report += '<B> Time alignment <B>' + '<br>'
+        report += fig2html(fig_1) + '<br>'
+        report += '<i> Maximum time dilation between sources = {} <i>'.format(max_time) + '<br>'
+        report += '<i> Average time dilation between sources = {} <i>'.format(mean_time) + '<br>'
+
+        plt.clf()
+
+        fig_1 = plt.plot(time_align)
+        plt.title('Time dilation after time alignment across whole video')
+        plt.xlabel('Index of LED-onset')
+        plt.ylabel('Frame difference between top and bottom sources')
         report += '<B> Time alignment <B>' + '<br>'
         report += fig2html(fig_1) + '<br>'
         report += '<i> Maximum time dilation between sources = {} <i>'.format(max_time) + '<br>'
@@ -130,7 +144,25 @@ class TrialDisplay:
 
         report += '<B> Summary <B>' + '<br>'
 
-        fig_1 = plt.plot(time_series)
+        fig_1, ax = plt.subplots(1, 2, figsize=(20, 5))
+
+        ## Entire video
+        p = (0)
+        ax[p].plot(time_series, color='k')
+        ax[p].set_title('Time dilation after alignment on LED offsets across entire video')
+        ax[p].set_xlabel('Index of LED-onset')
+        ax[p].set_ylabel('Frame difference between top and bottom sources')
+        ax[p].set_ylim(-3, 3)
+        ax[p].set_xlim(0,len(time_series))
+
+        ## Zoom in
+        p = (1)
+        ax[p].plot(time_series[:300], color='k')
+        ax[p].set_title('Time dilation after alignment on LED offsets for first 300 LED onsets')
+        ax[p].set_xlabel('Index of LED-onset')
+        ax[p].set_ylabel('Frame difference between top and bottom sources')
+        ax[p].set_ylim(-3, 3)
+        ax[p].set_xlim(0, 300)
         report += '<B> Time alignment whole video <B>' + '<br>'
         report += fig2html(fig_1) + '<br>'
         report += '<br>'

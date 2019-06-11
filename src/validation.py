@@ -18,11 +18,16 @@ class Validate:
         led_0 = self.dat_0[:, 3]
         led_1 = self.dat_1[:, 3]
 
-        led_0_peaks = np.diff(led_0) < 0
-        led_1_peaks = np.diff(led_1) < 0
+        led_0_peaks = np.diff(led_0) > 0
+        led_1_peaks = np.diff(led_1) > 0
         i_0 = np.where(led_0_peaks == 1)[0]
         i_1 = np.where(led_1_peaks == 1)[0]
-        i_diff = i_0 - i_1
+        if len(i_0) > len(i_1):
+            i_diff = i_0[:len(i_1)] - i_1 -1
+        elif len(i_1) > len(i_0):
+            i_diff = i_0 - i_1[:len(i_0)] -1
+        else:
+            i_diff = i_0 - i_1 -1
 
         return i_diff
 

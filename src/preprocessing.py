@@ -66,8 +66,8 @@ class timecorrect:
         led_1 = self.dat_1[:, 3]
 
         # Calculates where in the log-files the LED-state goes from off to on (0 to 1)
-        led_0_peaks = np.diff(led_0) > 0
-        led_1_peaks = np.diff(led_1) > 0
+        led_0_peaks = np.diff(led_0) < 0
+        led_1_peaks = np.diff(led_1) < 0
         i_0 = np.where(led_0_peaks == 1)[0]
         i_1 = np.where(led_1_peaks == 1)[0]
         peak_diff_0 = np.diff(i_0)
