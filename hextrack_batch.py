@@ -11,6 +11,7 @@ from tqdm import tqdm
 from moviepy.editor import VideoFileClip
 import numpy as np
 import glob
+from matplotlib import pyplot as plt
 
 from src.tracker import Tracker
 from src.preprocessing import timecorrect
@@ -22,7 +23,7 @@ from src.trial_analysis import TrialDisplay
 from src.validation import Validate
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = True
+ONLY_ANALYSIS = False
 
 
 def find_nearest(array, value):
@@ -79,8 +80,8 @@ class OfflineHextrack:
 
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
-        pbar = tqdm(range(int(self.duration)))
-        # pbar = tqdm(range(5000))
+        # pbar = tqdm(range(int(self.duration)))
+        pbar = tqdm(range(500))
         for i in pbar:
             frame = self.grabber.next()
             if frame is None:
@@ -95,7 +96,7 @@ class OfflineHextrack:
             # At the second frame, show computer-generated mask
             # If not sufficient, gives possibility to input user-generated mask
             # if self.frame_idx == 1:
-            #     path = pkg_resources.resource_filename(__name__, '/output/Masks/mask_{}.png'.format(n))
+            #     path = pkg_resources.resource_filename(__name__, '/Data/Raw/Masks/mask_{}.png'.format(n))
             #     mask = cv2.imread(path)
             #     plt.figure('Mask check')
             #     plt.imshow(mask)
