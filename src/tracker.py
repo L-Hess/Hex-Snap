@@ -232,9 +232,11 @@ class Tracker:
 
             cv2.drawMarker(self.frame_2, (cx, cy), (0, 0, 150), markerType=cv2.MARKER_CROSS, markerSize=20, thickness=2, line_type=cv2.LINE_AA)
 
+
             if n == 0 and self.id_ == 428:
                 path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/centroid_{}.png'.format(n))
                 cv2.imwrite(path, self.frame_2)
+
 
             if n == 1 and self.id_ == 430:
                 path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/centroid_{}.png'.format(n))
