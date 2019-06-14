@@ -355,7 +355,7 @@ class Homography:
         # Set up parameters for feature matching
         self.FLANN_INDEX_KDTREE = 0
         self.index_params = dict(algorithm=self.FLANN_INDEX_KDTREE, trees=5)
-        self.search_params = dict(checks=50)
+        self.search_params = dict(checks=20000)
 
         self.flann = cv2.FlannBasedMatcher(self.index_params, self.search_params)
 
