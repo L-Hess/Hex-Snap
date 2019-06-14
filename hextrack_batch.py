@@ -209,18 +209,18 @@ if __name__ == '__main__':
 
                         logging.debug('Position files acquired')
 
-                # tcorrect = timecorrect(__name__, sources=sources)
-                # tcorrect.correction()
-                # linearization = Linearization(__name__, sources=sources)
-                # lin_path_0, lin_path_1 = linearization.lin()
-                # groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
-                # gt_path_0, gt_path_1 = groundtruth.gt_mapping()
-                #
-                # trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
-                # trialcut.log_data()
-                # trialcut.cut(__name__)
-                #
-                # TrialDisplay(__name__, paths)
+                tcorrect = timecorrect(__name__, sources=sources)
+                tcorrect.correction()
+                linearization = Linearization(__name__, sources=sources)
+                lin_path_0, lin_path_1 = linearization.lin()
+                groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
+                gt_path_0, gt_path_1 = groundtruth.gt_mapping()
+
+                trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
+                trialcut.log_data()
+                trialcut.cut(__name__)
+
+                TrialDisplay(__name__, paths)
 
                 # # Validation
                 # validate = Validate(path_0, path_1)
