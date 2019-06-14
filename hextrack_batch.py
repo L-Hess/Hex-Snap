@@ -22,8 +22,7 @@ from src.trial_analysis import TrialDisplay
 from src.validation import Validate
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = False
-
+ONLY_ANALYSIS = True
 
 def find_nearest(array, value):
     array = np.asarray(array)
@@ -67,27 +66,6 @@ class OfflineHextrack:
                 print("Creation of the directory %s failed, this path probably already exists" % path)
         self.path = pkg_resources.resource_filename(__name__, '/data/interim/Position_log_files/{}/pos_log_file_{}.csv'
                                                     .format(src[len(src)-29:len(src)-10], n))
-
-        path = pkg_resources.resource_filename(__name__, "/data/raw/{}".format(src[len(src)-29:len(src)-10]))
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed, this path probably already exists" % path)
-
-        path = pkg_resources.resource_filename(__name__, "/data/raw/{}/frame_images".format(src[len(src)-29:len(src)-10]))
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed, this path probably already exists" % path)
-
-        path = pkg_resources.resource_filename(__name__, "/data/raw/{}/masks".format(src[len(src)-29:len(src)-10]))
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed, this path probably already exists" % path)
 
         # Initiation of the Grabbers and Trackers and creation of csv log file
         self.grabber = Grabber(src)
@@ -187,6 +165,9 @@ if __name__ == '__main__':
                 logs_time = []
                 path_0 = os.path.join(rootdir, file)
                 path_1 = path_0[:len(path_0)-5]+"1.avi"
+                if not os.path.exists(path_1):
+                    path_1 = path_0[:len(path_0)-12]+"{}_cam_1.avi".format(int(path_0[len(path_0)-12:len(path_0)-10])+1)
+
                 time = 3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13]) + int(path_0[len(path_0)-12:len(path_0)-10])
                 sources = [path_0, path_1]
 
@@ -228,18 +209,18 @@ if __name__ == '__main__':
 
                         logging.debug('Position files acquired')
 
-                tcorrect = timecorrect(__name__, sources=sources)
-                tcorrect.correction()
-                linearization = Linearization(__name__, sources=sources)
-                lin_path_0, lin_path_1 = linearization.lin()
-                groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
-                gt_path_0, gt_path_1 = groundtruth.gt_mapping()
-
-                trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
-                trialcut.log_data()
-                trialcut.cut(__name__)
-
-                TrialDisplay(__name__, paths)
+                # tcorrect = timecorrect(__name__, sources=sources)
+                # tcorrect.correction()
+                # linearization = Linearization(__name__, sources=sources)
+                # lin_path_0, lin_path_1 = linearization.lin()
+                # groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
+                # gt_path_0, gt_path_1 = groundtruth.gt_mapping()
+                #
+                # trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
+                # trialcut.log_data()
+                # trialcut.cut(__name__)
+                #
+                # TrialDisplay(__name__, paths)
 
                 # # Validation
                 # validate = Validate(path_0, path_1)
