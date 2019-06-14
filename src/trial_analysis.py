@@ -153,7 +153,7 @@ class TrialDisplay:
         ax[p].set_xlabel('Index of LED-onset')
         ax[p].set_ylabel('Frame difference between top and bottom sources')
         ax[p].set_ylim(-3, 3)
-        ax[p].set_xlim(0,len(time_series))
+        ax[p].set_xlim(0, len(time_series))
 
         ## Zoom in
         p = (1)
