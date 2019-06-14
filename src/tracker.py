@@ -123,7 +123,7 @@ class Tracker:
         return (x1, y1), (x2, y2)
 
     # Find the mouse in the frame (if present) and locate its position
-    def apply(self, frame, idx, n, mask_frame=None):
+    def apply(self, frame, idx, n, src, mask_frame=None):
         """Tracking of the mouse position on basis of masking"""
         self.id_ = idx
         mask_check = mask_frame
@@ -132,6 +132,11 @@ class Tracker:
         f_start = self.id * self.height
         f_end = (self.id + 1) * self.height
         self.frame = frame[f_start:f_end, :]
+
+        # On the first frame, save mask
+        if self.id_ == 0:
+            path = pkg_resources.resource_filename(self.name, "/data/raw/{}/frame_images/frame_{}.png".format(src[len(src)-29:len(src)-10], n))
+            cv2.imwrite(path, self.frame)
 
         # Check if a mask is already present, if not, create a new mask
         if not self.has_mask:
@@ -159,7 +164,7 @@ class Tracker:
 
         # On the first frame, save mask
         if self.id_ == 0:
-            path = pkg_resources.resource_filename(self.name, '/output/Masks/mask_{}.png'.format(n))
+            path = pkg_resources.resource_filename(self.name, "/data/raw/{}/masks/mask_{}.png".format(src[len(src)-29:len(src)-10], n))
             cv2.imwrite(path, self.mask_frame)
 
         # Apply mask to frame

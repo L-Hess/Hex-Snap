@@ -22,7 +22,7 @@ from src.trial_analysis import TrialDisplay
 from src.validation import Validate
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = True
+ONLY_ANALYSIS = False
 
 
 def find_nearest(array, value):
@@ -68,6 +68,27 @@ class OfflineHextrack:
         self.path = pkg_resources.resource_filename(__name__, '/data/interim/Position_log_files/{}/pos_log_file_{}.csv'
                                                     .format(src[len(src)-29:len(src)-10], n))
 
+        path = pkg_resources.resource_filename(__name__, "/data/raw/{}".format(src[len(src)-29:len(src)-10]))
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed, this path probably already exists" % path)
+
+        path = pkg_resources.resource_filename(__name__, "/data/raw/{}/frame_images".format(src[len(src)-29:len(src)-10]))
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed, this path probably already exists" % path)
+
+        path = pkg_resources.resource_filename(__name__, "/data/raw/{}/masks".format(src[len(src)-29:len(src)-10]))
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed, this path probably already exists" % path)
+
         # Initiation of the Grabbers and Trackers and creation of csv log file
         self.grabber = Grabber(src)
         self.tracker = Tracker(cfg, pos_log_file=open(self.path, 'w'), name=__name__, LED_pos=LED_pos, LED_thresholds=LED_thresholds)
@@ -76,11 +97,12 @@ class OfflineHextrack:
 
         self.vid = VideoFileClip(src)
         self.duration = self.vid.duration*15
+        self.src = src
 
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
-        pbar = tqdm(range(int(self.duration)))
-        # pbar = tqdm(range(5000))
+        # pbar = tqdm(range(int(self.duration)))
+        pbar = tqdm(range(1))
         for i in pbar:
             frame = self.grabber.next()
             if frame is None:
@@ -88,9 +110,9 @@ class OfflineHextrack:
 
             # Checks if the frame has a mask already, if not, it creates a new mask
             if self.mask_init:
-                self.tracker.apply(frame, self.frame_idx, n=self.n)
+                self.tracker.apply(frame, self.frame_idx, n=self.n, src=self.src)
             elif not self.mask_init:
-                self.tracker.apply(frame, self.frame_idx, mask_frame=self.made_mask, n=self.n)
+                self.tracker.apply(frame, self.frame_idx, mask_frame=self.made_mask, n=self.n, src=self.src)
 
             # At the second frame, show computer-generated mask
             # If not sufficient, gives possibility to input user-generated mask
