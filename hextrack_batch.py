@@ -159,16 +159,12 @@ if __name__ == '__main__':
     # Find videos in map and track them
     for _, _, files in os.walk(rootdir):
         for file in files:
-
             if file.endswith("0.avi"):
                 logs = []
                 logs_time = []
                 path_0 = os.path.join(rootdir, file)
                 path_1 = path_0[:len(path_0)-5]+"1.avi"
-                if not os.path.exists(path_1):
-                    path_1 = path_0[:len(path_0)-12]+"{}_cam_1.avi".format(int(path_0[len(path_0)-12:len(path_0)-10])+1)
-
-                time = 3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13]) + int(path_0[len(path_0)-12:len(path_0)-10])
+                time = 31536000 * int(path_0[len(path_0)-29:len(path_0)-25])+ 2592000*int(path_0[len(path_0)-24:len(path_0)-22]) + 86400*int(path_0[len(path_0)-21:len(path_0)-19])+ 3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13]) + int(path_0[len(path_0)-12:len(path_0)-10])
                 sources = [path_0, path_1]
 
                 # Scans through files and finds correct log file within map for each video
@@ -176,18 +172,22 @@ if __name__ == '__main__':
                 for file in files:
                     if file.endswith('log'):
                         logs.append(file)
-                        logs_time.append(3600*int(file[11:13])+60*int(file[14:16])+int(file[17:19]))
+                        logs_time.append(31536000 * int(file[0:4])+ 2592000*int(file[5:7]) + 86400*int(file[8:10])+3600*int(file[11:13])+60*int(file[14:16])+int(file[17:19]))
 
                 try:
                     log_time = find_nearest(logs_time, time)
-                    log_time_h = int(np.floor(log_time / 3600))
-                    log_time_m = int(np.floor((log_time - log_time_h * 3600) / 60))
-                    log_time_s = int(np.floor((log_time - log_time_h * 3600 - log_time_m * 60)))
+                    log_time_y = int(np.floor(log_time / 31536000))
+                    log_time_month = int(np.floor((log_time - log_time_y * 31536000) / 2592000))
+                    log_time_d = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000) / 86400))
+                    log_time_h = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400)/ 3600))
+                    log_time_m = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400 - log_time_h * 3600) / 60))
+                    log_time_s = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400 - log_time_h * 3600 - log_time_m * 60)))
 
                     for name in glob.glob(
-                            '{}/*{}_{}-{}-{}*log'.format(rootdir, path_0[len(path_0) - 29:len(path_0) - 19],
+                            '{}/*{}*_*{}*-*{}*-{}*log'.format(rootdir, path_0[len(path_0) - 29:len(path_0) - 19],
                                                          format(log_time_h, '02d'), format(log_time_m, '02d'),
                                                          format(log_time_s, '02d'))):
+
                         log = name
                 except ValueError:
                     print('Error:Log file is probably not present in designated folder')
