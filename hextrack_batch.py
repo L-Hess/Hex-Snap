@@ -156,16 +156,17 @@ if __name__ == '__main__':
     rootdir = cfg['video_map'][0]
     log = None
 
+    counts_0, counts_1, counts_2, counts_3, counts_4, counts_5 = 0, 0, 0, 0, 0, 0
+
     # Find videos in map and track them
     for _, _, files in os.walk(rootdir):
         for file in files:
-
             if file.endswith("0.avi"):
                 logs = []
                 logs_time = []
                 path_0 = os.path.join(rootdir, file)
                 path_1 = path_0[:len(path_0)-5]+"1.avi"
-                time = 3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13]) + int(path_0[len(path_0)-12:len(path_0)-10])
+                time = 31536000 * int(path_0[len(path_0)-29:len(path_0)-25])+ 2592000*int(path_0[len(path_0)-24:len(path_0)-22]) + 86400*int(path_0[len(path_0)-21:len(path_0)-19])+ 3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13]) + int(path_0[len(path_0)-12:len(path_0)-10])
                 sources = [path_0, path_1]
 
                 # Scans through files and finds correct log file within map for each video
@@ -173,38 +174,45 @@ if __name__ == '__main__':
                 for file in files:
                     if file.endswith('log'):
                         logs.append(file)
-                        logs_time.append(3600*int(file[11:13])+60*int(file[14:16])+int(file[17:19]))
+                        logs_time.append(31536000 * int(file[0:4])+ 2592000*int(file[5:7]) + 86400*int(file[8:10])+3600*int(file[11:13])+60*int(file[14:16])+int(file[17:19]))
 
                 try:
                     log_time = find_nearest(logs_time, time)
-                    log_time_h = int(np.floor(log_time / 3600))
-                    log_time_m = int(np.floor((log_time - log_time_h * 3600) / 60))
-                    log_time_s = int(np.floor((log_time - log_time_h * 3600 - log_time_m * 60)))
+                    log_time_y = int(np.floor(log_time / 31536000))
+                    log_time_month = int(np.floor((log_time - log_time_y * 31536000) / 2592000))
+                    log_time_d = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000) / 86400))
+                    log_time_h = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400)/ 3600))
+                    log_time_m = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400 - log_time_h * 3600) / 60))
+                    log_time_s = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400 - log_time_h * 3600 - log_time_m * 60)))
 
                     for name in glob.glob(
-                            '{}/*{}_{}-{}-{}*log'.format(rootdir, path_0[len(path_0) - 29:len(path_0) - 19],
+                            '{}/*{}*_*{}*-*{}*-{}*log'.format(rootdir, path_0[len(path_0) - 29:len(path_0) - 19],
                                                          format(log_time_h, '02d'), format(log_time_m, '02d'),
                                                          format(log_time_s, '02d'))):
+
                         log = name
                 except ValueError:
                     print('Error:Log file is probably not present in designated folder')
 
                 paths = [path_0, path_1, log]
 
-                # Initiate calculation of the homography matrix, directly corrects all node and LED positions
-                homography = Homography(__name__, sources=sources)
-                homography.homography_calc()
-                # Initiates OfflineHextrack to track mouse positions and save position log files
-                for n, src in enumerate(sources):
-                    print('Source {} @ {} starting'.format(n, src))
+                try:
+                    # Initiate calculation of the homography matrix, directly corrects all node and LED positions
+                    homography = Homography(__name__, sources=sources)
+                    homography.homography_calc()
+                    # Initiates OfflineHextrack to track mouse positions and save position log files
+                    for n, src in enumerate(sources):
+                        print('Source {} @ {} starting'.format(n, src))
 
-                    if not ONLY_ANALYSIS:
-                        LED_pos = homography.LEDfind(sources=sources, iterations=200)
-                        LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
-                        ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds)
-                        ht.loop()
+                        if not ONLY_ANALYSIS:
+                            LED_pos = homography.LEDfind(sources=sources, iterations=200)
+                            LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
+                            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds)
+                            ht.loop()
 
-                        logging.debug('Position files acquired')
+                            logging.debug('Position files acquired')
+                except cv2.error:
+                    print('Error: Something is wrong with the video file; process is continued without analysis of this particular video')
 
                 tcorrect = timecorrect(__name__, sources=sources)
                 tcorrect.correction()
@@ -217,9 +225,28 @@ if __name__ == '__main__':
                 trialcut.log_data()
                 trialcut.cut(__name__)
 
-                TrialDisplay(__name__, paths)
+                td = TrialDisplay(__name__, paths)
+
+                ct = td.counting()
+                print(ct)
+                print(len(ct))
+
+                if len(ct) >= 1:
+                    counts_0 += ct[0]
+                if len(ct) >= 2:
+                    counts_1 += ct[1]
+                if len(ct) >= 3:
+                    counts_2 += ct[2]
+                if len(ct) >= 4:
+                    counts_3 += ct[3]
+                if len(ct) >= 5:
+                    counts_4 += ct[4]
+                if len(ct) >= 6:
+                    counts_5 += ct[5]
 
                 # # Validation
                 # validate = Validate(path_0, path_1)
                 # validate.time_alignment_check()
                 # validate.gt_distance_check()
+
+    print(counts_0, counts_1, counts_2, counts_3, counts_4, counts_5)
