@@ -136,7 +136,9 @@ class TrialDisplay:
 
         max_time_series = max(time_series)
         mean_time_series = np.mean(time_series)
-        _, counts = np.unique([0,1,2,3,1,1,1,1,1], return_counts=True)
+
+        time_series = np.append(time_series, [-5, -4, -3, -2, 1, 0, 1, 2, 3, 4, 5])
+        _, counts = np.unique(time_series, return_counts=True)
 
         cleaned_dist = [x for x in dist_series if str(x) != 'nan']
         max_dist_series, mean_dist_series = np.nan, np.nan

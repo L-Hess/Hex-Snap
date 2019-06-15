@@ -156,7 +156,9 @@ if __name__ == '__main__':
     rootdir = cfg['video_map'][0]
     log = None
 
-    counts_0, counts_1, counts_2, counts_3, counts_4, counts_5 = 0, 0, 0, 0, 0, 0
+    counts_min5, counts_min4, counts_min3, counts_min2, counts_min1, counts_0, counts_1, counts_2, counts_3, counts_4, counts_5 = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+
+    video_amount = 0
 
     # Find videos in map and track them
     for _, _, files in os.walk(rootdir):
@@ -211,42 +213,42 @@ if __name__ == '__main__':
                             ht.loop()
 
                             logging.debug('Position files acquired')
-                except cv2.error:
+
+                    tcorrect = timecorrect(__name__, sources=sources)
+                    tcorrect.correction()
+                    linearization = Linearization(__name__, sources=sources)
+                    lin_path_0, lin_path_1 = linearization.lin()
+                    groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
+                    gt_path_0, gt_path_1 = groundtruth.gt_mapping()
+
+                    trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
+                    trialcut.log_data()
+                    trialcut.cut(__name__)
+
+                    td = TrialDisplay(__name__, paths)
+
+                    ct = td.counting()
+
+                    counts_min5 += ct[0] - 1
+                    counts_min4 += ct[1] - 1
+                    counts_min3 += ct[2] - 1
+                    counts_min2 += ct[3] - 1
+                    counts_min1 += ct[4] - 1
+                    counts_0 += ct[5] - 1
+                    counts_1 += ct[6] - 1
+                    counts_2 += ct[7] - 1
+                    counts_3 += ct[8] - 1
+                    counts_4 += ct[9] - 1
+                    counts_5 += ct[10] - 1
+
+                    video_amount += 1
+
+                except cv2.error or OSError:
                     print('Error: Something is wrong with the video file; process is continued without analysis of this particular video')
-
-                tcorrect = timecorrect(__name__, sources=sources)
-                tcorrect.correction()
-                linearization = Linearization(__name__, sources=sources)
-                lin_path_0, lin_path_1 = linearization.lin()
-                groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
-                gt_path_0, gt_path_1 = groundtruth.gt_mapping()
-
-                trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
-                trialcut.log_data()
-                trialcut.cut(__name__)
-
-                td = TrialDisplay(__name__, paths)
-
-                ct = td.counting()
-                print(ct)
-                print(len(ct))
-
-                if len(ct) >= 1:
-                    counts_0 += ct[0]
-                if len(ct) >= 2:
-                    counts_1 += ct[1]
-                if len(ct) >= 3:
-                    counts_2 += ct[2]
-                if len(ct) >= 4:
-                    counts_3 += ct[3]
-                if len(ct) >= 5:
-                    counts_4 += ct[4]
-                if len(ct) >= 6:
-                    counts_5 += ct[5]
 
                 # # Validation
                 # validate = Validate(path_0, path_1)
                 # validate.time_alignment_check()
                 # validate.gt_distance_check()
 
-    print(counts_0, counts_1, counts_2, counts_3, counts_4, counts_5)
+    print(counts_min5, counts_min4, counts_min3, counts_min2, counts_min1, counts_0, counts_1, counts_2, counts_3, counts_4, counts_5, video_amount)

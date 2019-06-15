@@ -611,22 +611,25 @@ class TrialCut:
         self.log_onsets, self.log_offsets = [], []
 
         for i in range(len(act)):
-            on_t = (3600 * int(act[i][11:13]) + 60 * int(act[i][14:16]) + int(act[i][17:19])) * 15 - vid_t
-            off_t = (3600 * int(inact[i][11:13]) + 60 * int(inact[i][14:16]) + int(inact[i][17:19])) * 15 - vid_t
+            try:
+                on_t = (3600 * int(act[i][11:13]) + 60 * int(act[i][14:16]) + int(act[i][17:19])) * 15 - vid_t
+                off_t = (3600 * int(inact[i][11:13]) + 60 * int(inact[i][14:16]) + int(inact[i][17:19])) * 15 - vid_t
 
-            on_tf = np.argwhere(self.dat_0 == on_t)
-            if on_t in self.dat_0:
-                on_tf = on_tf[0][0]
-            else:
-                on_tf = np.nan
-            self.log_onsets.append(on_tf)
+                on_tf = np.argwhere(self.dat_0 == on_t)
+                if on_t in self.dat_0:
+                    on_tf = on_tf[0][0]
+                else:
+                    on_tf = np.nan
+                self.log_onsets.append(on_tf)
 
-            off_tf = np.argwhere(self.dat_0 == off_t)
-            if off_t in self.dat_0:
-                off_tf = off_tf[0][0]
-            else:
-                off_tf = np.nan
-            self.log_offsets.append(off_tf)
+                off_tf = np.argwhere(self.dat_0 == off_t)
+                if off_t in self.dat_0:
+                    off_tf = off_tf[0][0]
+                else:
+                    off_tf = np.nan
+                self.log_offsets.append(off_tf)
+            except IndexError:
+                print('Last trial has not been switched off and will thus not be considered in analysis')
 
     def cut(self, pathname):
         path = pkg_resources.resource_filename(pathname, "/data/processed/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
