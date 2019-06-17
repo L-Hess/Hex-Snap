@@ -104,6 +104,8 @@ class Tracker:
 
         self.masks = np.arange(200, 100000, 200)
 
+        self.largest_areas = [100]
+
     # Making a mask on basis of the input frame
     def make_mask(self, frame, global_threshold=70):
         """Create a new mask on basis of the input frame"""
@@ -123,7 +125,7 @@ class Tracker:
         return (x1, y1), (x2, y2)
 
     # Find the mouse in the frame (if present) and locate its position
-    def apply(self, frame, idx, n, mask_frame=None):
+    def apply(self, frame, idx, n, src, mask_frame=None):
         """Tracking of the mouse position on basis of masking"""
         self.id_ = idx
         mask_check = mask_frame
@@ -132,6 +134,11 @@ class Tracker:
         f_start = self.id * self.height
         f_end = (self.id + 1) * self.height
         self.frame = frame[f_start:f_end, :]
+
+        # On the first frame, save mask
+        if self.id_ == 0:
+            path = pkg_resources.resource_filename(self.name, "/data/raw/{}/frame_images/frame_{}.png".format(src[len(src)-29:len(src)-10], n))
+            cv2.imwrite(path, self.frame)
 
         # Check if a mask is already present, if not, create a new mask
         if not self.has_mask:
@@ -159,7 +166,7 @@ class Tracker:
 
         # On the first frame, save mask
         if self.id_ == 0:
-            path = pkg_resources.resource_filename(self.name, '/output/Masks/mask_{}.png'.format(n))
+            path = pkg_resources.resource_filename(self.name, "/data/raw/{}/masks/mask_{}.png".format(src[len(src)-29:len(src)-10], n))
             cv2.imwrite(path, self.mask_frame)
 
         # Apply mask to frame
@@ -173,15 +180,18 @@ class Tracker:
         # Find the largest contour in the frame on basis of an earlier defined threshold
         _, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        min_mouse_area = np.mean(self.largest_areas)/1.5
+
         largest_cnt, largest_area = None, 0
         sum_area = 0
         for cnt in contours:
             area = int(cv2.contourArea(cnt))
-            if area > MIN_MOUSE_AREA:
+            if area > min_mouse_area:
                 sum_area += area
                 if area > largest_area:
                     largest_area = area
                     largest_cnt = cnt
+                    self.largest_areas.append(largest_area)
 
         # Correct coordinates for search window location
         if largest_cnt is not None:

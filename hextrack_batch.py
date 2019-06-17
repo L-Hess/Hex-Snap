@@ -24,7 +24,6 @@ from src.validation import Validate
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
 ONLY_ANALYSIS = True
 
-
 def find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
@@ -76,11 +75,12 @@ class OfflineHextrack:
 
         self.vid = VideoFileClip(src)
         self.duration = self.vid.duration*15
+        self.src = src
 
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
-        pbar = tqdm(range(int(self.duration)))
-        # pbar = tqdm(range(5000))
+        # pbar = tqdm(range(int(self.duration)))
+        pbar = tqdm(range(1))
         for i in pbar:
             frame = self.grabber.next()
             if frame is None:
@@ -88,9 +88,9 @@ class OfflineHextrack:
 
             # Checks if the frame has a mask already, if not, it creates a new mask
             if self.mask_init:
-                self.tracker.apply(frame, self.frame_idx, n=self.n)
+                self.tracker.apply(frame, self.frame_idx, n=self.n, src=self.src)
             elif not self.mask_init:
-                self.tracker.apply(frame, self.frame_idx, mask_frame=self.made_mask, n=self.n)
+                self.tracker.apply(frame, self.frame_idx, mask_frame=self.made_mask, n=self.n, src=self.src)
 
             # At the second frame, show computer-generated mask
             # If not sufficient, gives possibility to input user-generated mask
@@ -159,13 +159,12 @@ if __name__ == '__main__':
     # Find videos in map and track them
     for _, _, files in os.walk(rootdir):
         for file in files:
-
             if file.endswith("0.avi"):
                 logs = []
                 logs_time = []
                 path_0 = os.path.join(rootdir, file)
                 path_1 = path_0[:len(path_0)-5]+"1.avi"
-                time = 3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13]) + int(path_0[len(path_0)-12:len(path_0)-10])
+                time = 31536000 * int(path_0[len(path_0)-29:len(path_0)-25])+ 2592000*int(path_0[len(path_0)-24:len(path_0)-22]) + 86400*int(path_0[len(path_0)-21:len(path_0)-19])+ 3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13]) + int(path_0[len(path_0)-12:len(path_0)-10])
                 sources = [path_0, path_1]
 
                 # Scans through files and finds correct log file within map for each video
@@ -173,18 +172,22 @@ if __name__ == '__main__':
                 for file in files:
                     if file.endswith('log'):
                         logs.append(file)
-                        logs_time.append(3600*int(file[11:13])+60*int(file[14:16])+int(file[17:19]))
+                        logs_time.append(31536000 * int(file[0:4])+ 2592000*int(file[5:7]) + 86400*int(file[8:10])+3600*int(file[11:13])+60*int(file[14:16])+int(file[17:19]))
 
                 try:
                     log_time = find_nearest(logs_time, time)
-                    log_time_h = int(np.floor(log_time / 3600))
-                    log_time_m = int(np.floor((log_time - log_time_h * 3600) / 60))
-                    log_time_s = int(np.floor((log_time - log_time_h * 3600 - log_time_m * 60)))
+                    log_time_y = int(np.floor(log_time / 31536000))
+                    log_time_month = int(np.floor((log_time - log_time_y * 31536000) / 2592000))
+                    log_time_d = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000) / 86400))
+                    log_time_h = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400)/ 3600))
+                    log_time_m = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400 - log_time_h * 3600) / 60))
+                    log_time_s = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400 - log_time_h * 3600 - log_time_m * 60)))
 
                     for name in glob.glob(
-                            '{}/*{}_{}-{}-{}*log'.format(rootdir, path_0[len(path_0) - 29:len(path_0) - 19],
+                            '{}/*{}*_*{}*-*{}*-{}*log'.format(rootdir, path_0[len(path_0) - 29:len(path_0) - 19],
                                                          format(log_time_h, '02d'), format(log_time_m, '02d'),
                                                          format(log_time_s, '02d'))):
+
                         log = name
                 except ValueError:
                     print('Error:Log file is probably not present in designated folder')
