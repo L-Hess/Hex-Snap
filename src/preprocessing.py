@@ -187,7 +187,7 @@ class Linearization:
                         rel_pos = lin_dist_1 / nodes_dist
 
                     offset = distance(x, y, x_lin, y_lin)
-                    offsets.append(distance)
+                    offsets.append(int(offset))
 
 
                 # Correct for cases in which the mouse is 'behind' the node, fix these positions to being on top of
@@ -290,12 +290,37 @@ class Homography:
 
         self.pathname = pathname
 
+        path = pkg_resources.resource_filename(self.pathname, "/data/raw/{}".format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10]))
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed, this path probably already exists" % path)
+
         for n, source in enumerate(self.sources):
+            path = pkg_resources.resource_filename(self.pathname, "/data/raw/{}/frame_images".format(
+                sources[0][len(sources[0]) - 29:len(sources[0]) - 10], n))
+            if not os.path.exists(path):
+                try:
+                    os.mkdir(path)
+                except OSError:
+                    print("Creation of the directory %s failed, this path probably already exists" % path)
+
+            path = pkg_resources.resource_filename(self.pathname, "/data/raw/{}/masks".format(
+                sources[0][len(sources[0]) - 29:len(sources[0]) - 10], n))
+            if not os.path.exists(path):
+                try:
+                    os.mkdir(path)
+                except OSError:
+                    print("Creation of the directory %s failed, this path probably already exists" % path)
+
             cap = cv2.VideoCapture(source)
-            cap.set(1,1)
+            cap.set(1, 1)
             rt, frame = cap.read()
-            output = pkg_resources.resource_filename(self.pathname, '/data/raw/frame_images/im_{}.png'.format(n))
+            output = pkg_resources.resource_filename(self.pathname, "/data/raw/{}/frame_images/frame_{}.png".format(sources[0][len(sources[0])-29:len(sources[0])-10], n))
             cv2.imwrite(output, frame)
+            cap.release()
+            cv2.destroyAllWindows()
 
         path = pkg_resources.resource_filename(pathname, "/src/resources/aligned")
         if not os.path.exists(path):
@@ -310,8 +335,8 @@ class Homography:
         self.stand_nodes_top_path = pkg_resources.resource_filename(pathname, '/src/resources/default/node_pos_top.csv')
         self.stand_nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/resources/default/node_pos_bottom.csv')
 
-        self.im_0_path = pkg_resources.resource_filename(pathname, '/data/raw/frame_images/im_0.png')
-        self.im_1_path = pkg_resources.resource_filename(pathname, '/data/raw/frame_images/im_1.png')
+        self.im_0_path = pkg_resources.resource_filename(pathname, "/data/raw/{}/frame_images/frame_0.png".format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10]))
+        self.im_1_path = pkg_resources.resource_filename(pathname, "/data/raw/{}/frame_images/frame_1.png".format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10]))
 
         self.stand_LED_top_path = pkg_resources.resource_filename(pathname, '/src/resources/default/LED_top.csv')
         self.stand_LED_bot_path = pkg_resources.resource_filename(pathname, '/src/resources/default/LED_bot.csv')

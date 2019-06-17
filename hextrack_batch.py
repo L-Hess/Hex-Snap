@@ -213,14 +213,14 @@ if __name__ == '__main__':
                 linearization = Linearization(__name__, sources=sources)
                 lin_path_0, lin_path_1, offsets = linearization.lin()
                 offset_log.append(offsets)
-                groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
-                gt_path_0, gt_path_1 = groundtruth.gt_mapping()
-
-                trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
-                trialcut.log_data()
-                trialcut.cut(__name__)
-
-                TrialDisplay(__name__, paths)
+                # groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
+                # gt_path_0, gt_path_1 = groundtruth.gt_mapping()
+                #
+                # trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
+                # trialcut.log_data()
+                # trialcut.cut(__name__)
+                #
+                # TrialDisplay(__name__, paths)
 
                 # # Validation
                 # validate = Validate(path_0, path_1)
