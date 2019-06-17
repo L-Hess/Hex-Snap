@@ -125,6 +125,9 @@ class Tracker:
     # Find the mouse in the frame (if present) and locate its position
     def apply(self, frame, idx, n, mask_frame=None):
         """Tracking of the mouse position on basis of masking"""
+
+        cx, cy = np.nan, np.nan
+
         self.id_ = idx
         mask_check = mask_frame
         self.n = n
@@ -242,6 +245,14 @@ class Tracker:
             self.led_state = 1
         else:
             self.led_state = 0
+
+        if not np.isnan(cx):
+            if cx <= 15 or cx >= 785:
+                cx = np.nan
+                cy = np.nan
+            if cy <= 15 or cy >= 585:
+                cx = np.nan
+                cy = np.nan
 
         # Save mouse position and LED state in log file
         if largest_cnt is None:
