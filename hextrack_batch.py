@@ -11,6 +11,7 @@ from tqdm import tqdm
 from moviepy.editor import VideoFileClip
 import numpy as np
 import glob
+from matplotlib import pyplot as plt
 
 from src.tracker import Tracker
 from src.preprocessing import timecorrect
@@ -22,7 +23,8 @@ from src.trial_analysis import TrialDisplay
 from src.validation import Validate
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = True
+ONLY_ANALYSIS = False
+Mask_check = False
 
 def find_nearest(array, value):
     array = np.asarray(array)
@@ -47,8 +49,9 @@ class Grabber:
 
 # Loops through frames, capturing them and applying tracking
 class OfflineHextrack:
-    def __init__(self, cfg, src, n, LED_pos, LED_thresholds):
-        threading.current_thread().name = 'HexTrack'
+    def __init__(self, cfg, src, n, LED_pos, LED_thresholds, sources):
+
+        self.sources = sources
 
         self.cfg = cfg
         self.frame_idx = 0
@@ -80,7 +83,7 @@ class OfflineHextrack:
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
         # pbar = tqdm(range(int(self.duration)))
-        pbar = tqdm(range(1))
+        pbar = tqdm(range(3000))
         for i in pbar:
             frame = self.grabber.next()
             if frame is None:
@@ -92,19 +95,21 @@ class OfflineHextrack:
             elif not self.mask_init:
                 self.tracker.apply(frame, self.frame_idx, mask_frame=self.made_mask, n=self.n, src=self.src)
 
-            # At the second frame, show computer-generated mask
-            # If not sufficient, gives possibility to input user-generated mask
-            # if self.frame_idx == 1:
-            #     path = pkg_resources.resource_filename(__name__, '/output/Masks/mask_{}.png'.format(n))
-            #     mask = cv2.imread(path)
-            #     plt.figure('Mask check')
-            #     plt.imshow(mask)
-            #     plt.show()
-            #     mask_check = input("If the mask is sufficient, enter y: ")
-            #     if mask_check != 'y':
-            #         input('Please upload custom mask under the name new_mask.png to the output folder and press enter')
-            #         self.made_mask = cv2.imread('new_mask.png', 0)
-            #         self.mask_init = False
+            if Mask_check:
+                # At the second frame, show computer-generated mask
+                # If not sufficient, gives possibility to input user-generated mask
+                if self.frame_idx == 0:
+                    path = pkg_resources.resource_filename(__name__, "/data/raw/{}/Masks/mask_{}.png".format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
+                    mask = cv2.imread(path)
+                    plt.figure('Mask check')
+                    plt.imshow(mask)
+                    plt.show()
+                    mask_check = input("If the mask is sufficient, enter y: ")
+                    if mask_check != 'y':
+                        input('Please upload custom mask under the name new_mask.png to the output folder and press enter')
+                        mask_path = pkg_resources.resource_filename(__name__, "/Input_mask/new_mask.png")
+                        self.made_mask = cv2.imread(mask_path, 0)
+                        self.mask_init = False
             self.frame_idx += 1
         self.tracker.close()
         pbar.close()
@@ -205,14 +210,14 @@ if __name__ == '__main__':
                         if not ONLY_ANALYSIS:
                             LED_pos = homography.LEDfind(sources=sources, iterations=200)
                             LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
-                            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds)
+                            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds, sources=sources)
                             ht.loop()
 
                             logging.debug('Position files acquired')
 
                     tcorrect = timecorrect(__name__, sources=sources)
-                    tcorrect.correction()
-                    linearization = Linearization(__name__, sources=sources)
+                    dat_0, dat_1 = tcorrect.correction()
+                    linearization = Linearization(__name__, dat_0, dat_1, sources=sources)
                     lin_path_0, lin_path_1 = linearization.lin()
                     groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
                     gt_path_0, gt_path_1 = groundtruth.gt_mapping()

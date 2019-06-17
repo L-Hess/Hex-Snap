@@ -99,26 +99,18 @@ class timecorrect:
                 self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
                 self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
 
-        with open(self.path_0, 'wb') as f:
-            np.savetxt(f, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state", comments='')
-        with open(self.path_1, 'wb') as f:
-            np.savetxt(f, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state", comments='')
+        return self.dat_0f, self.dat_1f
 
 
 
 class Linearization:
-    def __init__(self, pathname, sources):
+    def __init__(self, pathname, dat_0, dat_1, sources):
 
         # Load in the time aligned log files and corrected node positions
         # Ghost nodes are used for nodes that are off of the video
         # Dwell nodes are used for nodes that are off of the video
-        self.data_path_1 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}'
-                                                                     '/pos_log_file_tcorr_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        self.data_path_2 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}'
-                                                                     '/pos_log_file_tcorr_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-
-        self.dat_0 = np.genfromtxt(self.data_path_1, delimiter=',', skip_header=False)
-        self.dat_1 = np.genfromtxt(self.data_path_2, delimiter=',', skip_header=False)
+        self.dat_0 = dat_0
+        self.dat_1 = dat_1
 
         path = pkg_resources.resource_filename(pathname, "/data/interim/linearized_position_log_files/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         if not os.path.exists(path):
