@@ -62,7 +62,7 @@ class TrialDisplay:
 
                         n = int(dir.replace("trial_", ""))
 
-                        # TrialDisplay.make_html(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
+                        TrialDisplay.make_html(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
 
         self.counts = TrialDisplay.make_summary_html(self, pathname, path, max_dist_log, mean_dist_log)
 
