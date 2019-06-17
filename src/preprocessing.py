@@ -141,6 +141,8 @@ class Linearization:
         n = 0
         path_0, path_1 = None, None
 
+        offsets = []
+
         for dat in [self.dat_0, self.dat_1]:
             path = pkg_resources.resource_filename(self.pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_{}.csv'.format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
             pos_log_file = open(path, 'w')
@@ -184,6 +186,10 @@ class Linearization:
                     else:
                         rel_pos = lin_dist_1 / nodes_dist
 
+                    offset = distance(x, y, x_lin, y_lin)
+                    offsets.append(int(offset))
+
+
                 # Correct for cases in which the mouse is 'behind' the node, fix these positions to being on top of
                 # the node itself
                 if rel_pos > 1:
@@ -203,7 +209,7 @@ class Linearization:
 
             n += 1
 
-        return path_0, path_1
+        return path_0, path_1, offsets
 
 
 class GroundTruth:

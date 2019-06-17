@@ -156,6 +156,8 @@ if __name__ == '__main__':
     rootdir = cfg['video_map'][0]
     log = None
 
+    offset_log = []
+
     # Find videos in map and track them
     for _, _, files in os.walk(rootdir):
         for file in files:
@@ -212,17 +214,20 @@ if __name__ == '__main__':
                 tcorrect = timecorrect(__name__, sources=sources)
                 tcorrect.correction()
                 linearization = Linearization(__name__, sources=sources)
-                lin_path_0, lin_path_1 = linearization.lin()
-                groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
-                gt_path_0, gt_path_1 = groundtruth.gt_mapping()
-
-                trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
-                trialcut.log_data()
-                trialcut.cut(__name__)
-
-                TrialDisplay(__name__, paths)
+                lin_path_0, lin_path_1, offsets = linearization.lin()
+                offset_log.append(offsets)
+                # groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
+                # gt_path_0, gt_path_1 = groundtruth.gt_mapping()
+                #
+                # trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
+                # trialcut.log_data()
+                # trialcut.cut(__name__)
+                #
+                # TrialDisplay(__name__, paths)
 
                 # # Validation
                 # validate = Validate(path_0, path_1)
                 # validate.time_alignment_check()
                 # validate.gt_distance_check()
+
+    np.savetxt(r'D:\offsetlog.csv', offset_log, delimiter=',')
