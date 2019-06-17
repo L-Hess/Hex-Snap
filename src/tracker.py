@@ -186,7 +186,7 @@ class Tracker:
         sum_area = 0
         for cnt in contours:
             area = int(cv2.contourArea(cnt))
-            if area > min_mous_area:
+            if area > min_mouse_area:
                 sum_area += area
                 if area > largest_area:
                     largest_area = area
