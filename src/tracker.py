@@ -191,6 +191,15 @@ class Tracker:
         self.contours = contours
         self.largest_contour = largest_cnt
 
+        if n == 0 and self.id_ == 18049:
+            frame_cont = cv2.drawContours(self.frame, [largest_cnt], 0, (0, 0, 255), 3)
+            cv2.imwrite(r'D:\frame_0.png', frame_cont)
+
+        if n == 1 and self.id_ == 18073:
+            frame_cont = cv2.drawContours(self.frame, [largest_cnt], 0, (0, 0, 255), 3)
+            cv2.imwrite(r'D:\frame_0.png', frame_cont)
+
+
         # If a largest contour is present (mouse is in the maze), find its centroid
         if largest_cnt is None:
             self.kf_age += 1

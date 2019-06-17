@@ -22,7 +22,7 @@ from src.trial_analysis import TrialDisplay
 from src.validation import Validate
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = True
+ONLY_ANALYSIS = False
 
 
 def find_nearest(array, value):
