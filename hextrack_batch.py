@@ -194,33 +194,36 @@ if __name__ == '__main__':
 
                 paths = [path_0, path_1, log]
 
-                # Initiate calculation of the homography matrix, directly corrects all node and LED positions
-                homography = Homography(__name__, sources=sources)
-                homography.homography_calc()
-                # Initiates OfflineHextrack to track mouse positions and save position log files
-                for n, src in enumerate(sources):
-                    print('Source {} @ {} starting'.format(n, src))
+                try:
+                    # Initiate calculation of the homography matrix, directly corrects all node and LED positions
+                    homography = Homography(__name__, sources=sources)
+                    homography.homography_calc()
+                    # Initiates OfflineHextrack to track mouse positions and save position log files
+                    for n, src in enumerate(sources):
+                        print('Source {} @ {} starting'.format(n, src))
 
-                    if not ONLY_ANALYSIS:
-                        LED_pos = homography.LEDfind(sources=sources, iterations=200)
-                        LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
-                        ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds)
-                        ht.loop()
+                        if not ONLY_ANALYSIS:
+                            LED_pos = homography.LEDfind(sources=sources, iterations=200)
+                            LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
+                            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds)
+                            ht.loop()
 
-                        logging.debug('Position files acquired')
+                            logging.debug('Position files acquired')
 
-                tcorrect = timecorrect(__name__, sources=sources)
-                tcorrect.correction()
-                linearization = Linearization(__name__, sources=sources)
-                lin_path_0, lin_path_1 = linearization.lin()
-                groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
-                gt_path_0, gt_path_1 = groundtruth.gt_mapping()
+                    tcorrect = timecorrect(__name__, sources=sources)
+                    tcorrect.correction()
+                    linearization = Linearization(__name__, sources=sources)
+                    lin_path_0, lin_path_1 = linearization.lin()
+                    groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
+                    gt_path_0, gt_path_1 = groundtruth.gt_mapping()
 
-                trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
-                trialcut.log_data()
-                trialcut.cut(__name__)
+                    trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
+                    trialcut.log_data()
+                    trialcut.cut(__name__)
 
-                TrialDisplay(__name__, paths)
+                    TrialDisplay(__name__, paths)
+                except cv2.error or OSError:
+                    print('Error: Something is wrong with the video file; process is continued without analysis of this particular video')
 
                 # # Validation
                 # validate = Validate(path_0, path_1)
