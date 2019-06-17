@@ -586,6 +586,8 @@ class TrialCut:
         self.log_path = paths[2]
         self.dat_0 = np.genfromtxt(data[0], delimiter=',', skip_header=False)
         self.dat_1 = np.genfromtxt(data[1], delimiter=',', skip_header=False)
+        self.path_0, self.path_1 = None, None
+        self.dat_0f, self.dat_1f = None, None
 
     def log_data(self):
         vid_t = (3600 * int(self.path_vid_0[len(self.path_vid_0)-18:len(self.path_vid_0)-16]) + 60 * int(self.path_vid_0[len(self.path_vid_0)-15:len(self.path_vid_0)-13]) + int(
@@ -669,7 +671,9 @@ class TrialCut:
                     # get cut out immediately; it is assumed no trial will take less than 5 (time aligned) frames
                     if not self.log_offsets[i]-self.log_onsets[i] <= 5:
 
-                        np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
-                        np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
+                        with open(self.path_0, 'wb') as f:
+                            np.savetxt(f, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
+                        with open(self.path_1, 'wb') as f:
+                            np.savetxt(f, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
 
                         n += 1

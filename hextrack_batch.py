@@ -80,7 +80,7 @@ class OfflineHextrack:
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
         # pbar = tqdm(range(int(self.duration)))
-        pbar = tqdm(range(5000))
+        pbar = tqdm(range(500))
         for i in pbar:
             frame = self.grabber.next()
             if frame is None:

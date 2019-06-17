@@ -5,8 +5,6 @@ from collections import deque
 import pkg_resources
 from src.kalman import KalmanFilter
 
-MIN_MOUSE_AREA = 50
-
 THICKNESS_MINOR_CONTOUR = 1
 THICKNESS_MAJOR_CONTOUR = 1
 DRAW_MINOR_CONTOURS = False
@@ -104,6 +102,8 @@ class Tracker:
 
         self.masks = np.arange(200, 100000, 200)
 
+        self.mouse_areas = [100]
+
     # Making a mask on basis of the input frame
     def make_mask(self, frame, global_threshold=70):
         """Create a new mask on basis of the input frame"""
@@ -176,15 +176,18 @@ class Tracker:
         # Find the largest contour in the frame on basis of an earlier defined threshold
         _, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        min_mouse_area = np.mean(self.mouse_areas)/1.5
+
         largest_cnt, largest_area = None, 0
         sum_area = 0
         for cnt in contours:
             area = int(cv2.contourArea(cnt))
-            if area > MIN_MOUSE_AREA:
+            if area > min_mouse_area:
                 sum_area += area
                 if area > largest_area:
                     largest_area = area
                     largest_cnt = cnt
+                    self.mouse_areas.append(largest_area)
 
         # Correct coordinates for search window location
         if largest_cnt is not None:
@@ -246,13 +249,10 @@ class Tracker:
         else:
             self.led_state = 0
 
-        if not np.isnan(cx):
-            if cx <= 15 or cx >= 785:
-                cx = np.nan
-                cy = np.nan
-            if cy <= 15 or cy >= 585:
-                cx = np.nan
-                cy = np.nan
+        if not np.isnan(cx) and not np.isnan(cy):
+            if cx <= 15 or cx >= 785 or cy <= 15 or cy >= 585:
+                cx = None
+                cy = None
 
         # Save mouse position and LED state in log file
         if largest_cnt is None:
