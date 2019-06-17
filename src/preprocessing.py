@@ -187,7 +187,7 @@ class Linearization:
                         rel_pos = lin_dist_1 / nodes_dist
 
                     offset = distance(x, y, x_lin, y_lin)
-                    offsets.append(int(offset))
+                    offsets.append(offset)
 
 
                 # Correct for cases in which the mouse is 'behind' the node, fix these positions to being on top of
