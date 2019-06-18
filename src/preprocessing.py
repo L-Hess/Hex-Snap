@@ -220,6 +220,13 @@ class GroundTruth:
             except OSError:
                 print("Creation of the directory %s failed" % path)
 
+        path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_stitched/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed" % path)
+
     def gt_mapping(self):
 
         n = 0
@@ -260,13 +267,79 @@ class GroundTruth:
                 pos_log_file.write('{}, {}, {}, {}, {}, {}, {}, {}, {}\n'.format(dat[k, 0], dat[k, 1], dat[k, 2], dat[k, 3], dat[k, 4], dat[k, 5], dat[k, 6], x4, y4))
 
             if n == 0:
-                path_0 = path
+                self.path_0 = path
             if n == 1:
-                path_1 = path
+                self.path_1 = path
 
             n += 1
 
-        return path_0, path_1
+        return self.path_0, self.path_1
+
+    def gt_stitch(self):
+        path = pkg_resources.resource_filename(self.pathname,
+                                               '/data/interim/pos_log_files_stitched/{}/pos_log_file_stitched.csv'.format(
+                                                   self.sources[0][
+                                                   len(self.sources[0]) - 29:len(self.sources[0]) - 10]))
+        pos_log_file = open(path, 'w')
+        pos_log_file.write('frame_n, x, y, first node, second node\n')
+
+        dat_0 = np.genfromtxt(self.path_0, delimiter=',', skip_header=True)
+        dat_1 = np.genfromtxt(self.path_1, delimiter=',', skip_header=True)
+
+        dist = np.nan
+        x = np.nan
+        y = np.nan
+        x_log = []
+        y_log = []
+
+        for i in range(len(dat_0)):
+            frame_n = i
+
+            if not np.isnan(dat_0[i, 0]) and not np.isnan(dat_1[i, 0]):
+                dist = distance(dat_0[i, 7], dat_0[i, 8], dat_1[i, 7], dat_1[i, 8])
+
+            elif not np.isnan(dat_0[i, 0]) and np.isnan(dat_1[i, 0]):
+                x = dat_0[i, 7]
+                y = dat_0[i, 8]
+                dist = np.nan
+
+            elif np.isnan(dat_0[i, 0]) and not np.isnan(dat_1[i, 0]):
+                x = dat_1[i, 7]
+                y = dat_1[i, 8]
+                dist = np.nan
+
+            if not np.isnan(dist):
+                x = (dat_0[i, 7] + dat_1[i, 7]) / 2
+                y = (dat_0[i, 8] + dat_0[i, 8]) / 2
+                dist = np.nan
+
+            if dist >= 80:
+                dist_0 = distance(dat_0[i, 7], dat_0[i, 8], x_log[len(x_log)], y_log[len(y_log)])
+                dist_1 = distance(dat_1[i, 7], dat_1[i, 8], x_log[len(x_log)], y_log[len(y_log)])
+                if dist_0 < dist_1:
+                    x = dat_0[i, 7]
+                    y = dat_0[i, 8]
+                    dist = np.nan
+
+                elif dist_0 > dist_1:
+                    x = dat_1[i, 7]
+                    y = dat_1[i, 8]
+                    dist = np.nan
+
+                else:
+                    x = (dat_0[i, 7] + dat_1[i, 7]) / 2
+                    y = (dat_0[i, 8] + dat_0[i, 8]) / 2
+                    dist = np.nan
+
+            x_log.append(x)
+            y_log.append(y)
+
+            pos_log_file.write("{}, {}, {}\n".format(frame_n, x, y))
+
+            node_first = np.nan
+            node_second = np.nan
+
+        return path
 
 
 # Calculation of the Homography matrix and remapping of node and LED position for the new videos
@@ -578,6 +651,7 @@ class TrialCut:
         self.log_path = paths[2]
         self.dat_0 = np.genfromtxt(data[0], delimiter=',', skip_header=False)
         self.dat_1 = np.genfromtxt(data[1], delimiter=',', skip_header=False)
+        self.dat = np.genfromtxt(data[2], delimiter=',', skip_header=True)
 
     def log_data(self):
         vid_t = (3600 * int(self.path_vid_0[len(self.path_vid_0)-18:len(self.path_vid_0)-16]) + 60 * int(self.path_vid_0[len(self.path_vid_0)-15:len(self.path_vid_0)-13]) + int(
@@ -663,5 +737,47 @@ class TrialCut:
 
                         np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
                         np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
+
+                        n += 1
+
+    def cut_stitch(self, pathname):
+        path = pkg_resources.resource_filename(pathname, "/data/processed/{}".format(
+            self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10]))
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed" % path)
+
+        n = 1
+        for i in range(len(self.log_onsets)):
+
+            if not np.isnan(self.log_onsets[i]) and not np.isnan(self.log_offsets[i]):
+
+                path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}".format(
+                    self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
+                if not os.path.exists(path):
+                    try:
+                        os.mkdir(path)
+                    except OSError:
+                        print("Creation of the directory %s failed" % path)
+
+                path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}/position_log_files".format(
+                    self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
+                if not os.path.exists(path):
+                    try:
+                        os.mkdir(path)
+                    except OSError:
+                        print("Creation of the directory %s failed" % path)
+
+                if os.path.exists(path):
+                    self.path = path + '/pos_log_file.csv'
+
+                    self.dat_f = self.dat[self.log_onsets[i]:self.log_offsets[i]]
+
+                    # Sometimes experimenters double click the physical clicker by mistake, these 'trials'
+                    # get cut out immediately; it is assumed no trial will take less than 5 (time aligned) frames
+                    if not self.log_offsets[i] - self.log_onsets[i] <= 5:
+                        np.savetxt(self.path, self.dat_f, delimiter=",", header="frame_n, x, y", comments='')
 
                         n += 1

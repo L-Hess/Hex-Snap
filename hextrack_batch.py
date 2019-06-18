@@ -23,8 +23,9 @@ from src.trial_analysis import TrialDisplay
 from src.validation import Validate
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = False
+ONLY_ANALYSIS = True
 Mask_check = False
+
 
 def find_nearest(array, value):
     array = np.asarray(array)
@@ -232,10 +233,12 @@ if __name__ == '__main__':
                     lin_path_0, lin_path_1 = linearization.lin()
                     groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
                     gt_path_0, gt_path_1 = groundtruth.gt_mapping()
+                    gt_path = groundtruth.gt_stitch()
 
-                    trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
+                    trialcut = TrialCut(paths, [gt_path_0, gt_path_1, gt_path])
                     trialcut.log_data()
                     trialcut.cut(__name__)
+                    trialcut.cut_stitch(__name__)
 
                     TrialDisplay(__name__, paths)
                 except cv2.error or OSError:
