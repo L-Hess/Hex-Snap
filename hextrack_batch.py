@@ -23,7 +23,7 @@ from src.trial_analysis import TrialDisplay
 from src.validation import Validate
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
-ONLY_ANALYSIS = False
+ONLY_ANALYSIS = True
 Mask_check = False
 
 def find_nearest(array, value):
@@ -83,8 +83,8 @@ class OfflineHextrack:
 
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
-        # pbar = tqdm(range(int(self.duration)))
-        pbar = tqdm(range(3000))
+        pbar = tqdm(range(int(self.duration)))
+        # pbar = tqdm(range(3000))
         for i in pbar:
             frame = self.grabber.next()
             if frame is None:

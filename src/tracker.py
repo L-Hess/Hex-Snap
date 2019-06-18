@@ -180,7 +180,7 @@ class Tracker:
         # Find the largest contour in the frame on basis of an earlier defined threshold
         _, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        min_mouse_area = np.mean(self.largest_areas)/1.5
+        min_mouse_area = np.mean(self.largest_areas)/1.2
 
         largest_cnt, largest_area = None, 0
         sum_area = 0
@@ -191,7 +191,8 @@ class Tracker:
                 if area > largest_area:
                     largest_area = area
                     largest_cnt = cnt
-                    self.largest_areas.append(largest_area)
+                    if largest_area < 2*min_mouse_area:
+                        self.largest_areas.append(largest_area)
 
         # Correct coordinates for search window location
         if largest_cnt is not None:
