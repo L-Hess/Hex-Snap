@@ -72,7 +72,8 @@ class OfflineHextrack:
 
         # Initiation of the Grabbers and Trackers and creation of csv log file
         self.grabber = Grabber(src)
-        self.tracker = Tracker(cfg, pos_log_file=open(self.path, 'w'), name=__name__, LED_pos=LED_pos, LED_thresholds=LED_thresholds)
+        self.tracker = Tracker(cfg, pos_log_file=open(self.path, 'w'), name=__name__, LED_pos=LED_pos,
+                               LED_thresholds=LED_thresholds)
 
         logging.debug('HexTrack initialization done!')
 
@@ -99,14 +100,16 @@ class OfflineHextrack:
                 # At the second frame, show computer-generated mask
                 # If not sufficient, gives possibility to input user-generated mask
                 if self.frame_idx == 0:
-                    path = pkg_resources.resource_filename(__name__, "/data/raw/{}/Masks/mask_{}.png".format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
+                    path = pkg_resources.resource_filename(__name__, "/data/raw/{}/Masks/mask_{}.png".format
+                    (self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
                     mask = cv2.imread(path)
                     plt.figure('Mask check')
                     plt.imshow(mask)
                     plt.show()
                     mask_check = input("If the mask is sufficient, enter y: ")
                     if mask_check != 'y':
-                        input('Please upload custom mask under the name new_mask.png to the output folder and press enter')
+                        input('Please upload custom mask under the name new_mask.png to the output folder'
+                              ' and press enter')
                         mask_path = pkg_resources.resource_filename(__name__, "/Input_mask/new_mask.png")
                         self.made_mask = cv2.imread(mask_path, 0)
                         self.mask_init = False
@@ -169,7 +172,10 @@ if __name__ == '__main__':
                 logs_time = []
                 path_0 = os.path.join(rootdir, file)
                 path_1 = path_0[:len(path_0)-5]+"1.avi"
-                time = 31536000 * int(path_0[len(path_0)-29:len(path_0)-25])+ 2592000*int(path_0[len(path_0)-24:len(path_0)-22]) + 86400*int(path_0[len(path_0)-21:len(path_0)-19])+ 3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13]) + int(path_0[len(path_0)-12:len(path_0)-10])
+                time = 31536000 * int(path_0[len(path_0)-29:len(path_0)-25])+ 2592000*\
+                       int(path_0[len(path_0)-24:len(path_0)-22]) + 86400*int(path_0[len(path_0)-21:len(path_0)-19])+ \
+                       3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13])\
+                       + int(path_0[len(path_0)-12:len(path_0)-10])
                 sources = [path_0, path_1]
 
                 # Scans through files and finds correct log file within map for each video
@@ -177,16 +183,20 @@ if __name__ == '__main__':
                 for file in files:
                     if file.endswith('log'):
                         logs.append(file)
-                        logs_time.append(31536000 * int(file[0:4])+ 2592000*int(file[5:7]) + 86400*int(file[8:10])+3600*int(file[11:13])+60*int(file[14:16])+int(file[17:19]))
+                        logs_time.append(31536000 * int(file[0:4])+ 2592000*int(file[5:7]) + 86400*int(file[8:10])+3600
+                                         *int(file[11:13])+60*int(file[14:16])+int(file[17:19]))
 
                 try:
                     log_time = find_nearest(logs_time, time)
                     log_time_y = int(np.floor(log_time / 31536000))
                     log_time_month = int(np.floor((log_time - log_time_y * 31536000) / 2592000))
                     log_time_d = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000) / 86400))
-                    log_time_h = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400)/ 3600))
-                    log_time_m = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400 - log_time_h * 3600) / 60))
-                    log_time_s = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400 - log_time_h * 3600 - log_time_m * 60)))
+                    log_time_h = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d
+                                               * 86400)/ 3600))
+                    log_time_m = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d
+                                               * 86400 - log_time_h * 3600) / 60))
+                    log_time_s = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d
+                                               * 86400 - log_time_h * 3600 - log_time_m * 60)))
 
                     for name in glob.glob(
                             '{}/*{}*_*{}*-*{}*-{}*log'.format(rootdir, path_0[len(path_0) - 29:len(path_0) - 19],
@@ -210,7 +220,8 @@ if __name__ == '__main__':
                         if not ONLY_ANALYSIS:
                             LED_pos = homography.LEDfind(sources=sources, iterations=200)
                             LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
-                            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds, sources=sources)
+                            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds,
+                                                 sources=sources)
                             ht.loop()
 
                             logging.debug('Position files acquired')
@@ -228,7 +239,8 @@ if __name__ == '__main__':
 
                     TrialDisplay(__name__, paths)
                 except cv2.error or OSError:
-                    print('Error: Something is wrong with the video file; process is continued without analysis of this particular video')
+                    print('Error: Something is wrong with the video file; process is continued without analysis of'
+                          ' this particular video')
 
                 # # Validation
                 # validate = Validate(path_0, path_1)
