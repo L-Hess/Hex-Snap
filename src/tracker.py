@@ -131,6 +131,8 @@ class Tracker:
         mask_check = mask_frame
         self.n = n
 
+        cx, cy = None, None
+
         f_start = self.id * self.height
         f_end = (self.id + 1) * self.height
         self.frame = frame[f_start:f_end, :]
@@ -253,6 +255,11 @@ class Tracker:
             self.led_state = 1
         else:
             self.led_state = 0
+
+        if cx and cy:
+            if cx <= 15 or cx >= 785 or cy <= 15 or cy >= 585:
+                cx = None
+                cy = None
 
         # Save mouse position and LED state in log file
         if largest_cnt is None:
