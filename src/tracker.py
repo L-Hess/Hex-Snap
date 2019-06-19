@@ -4,8 +4,7 @@ import numpy as np
 from collections import deque
 import pkg_resources
 from src.kalman import KalmanFilter
-
-MIN_MOUSE_AREA = 50
+from matplotlib import pyplot as plt
 
 THICKNESS_MINOR_CONTOUR = 1
 THICKNESS_MAJOR_CONTOUR = 1
@@ -15,7 +14,7 @@ DRAW_MAJOR_CONTOURS = True
 TRAIL_LENGTH = 128
 DRAW_TRAIL = True
 DRAW_KF_TRAIL = True
-KF_REGISTRATION_AGE = 10
+KF_REGISTRATION_AGE = 15
 
 SEARCH_WINDOW_SIZE = 60
 
@@ -132,6 +131,8 @@ class Tracker:
         self.n = n
 
         cx, cy = None, None
+        kfx = None
+        kfy = None
 
         f_start = self.id * self.height
         f_end = (self.id + 1) * self.height
@@ -148,8 +149,8 @@ class Tracker:
             if np.mean(foi) > 15:
                 self.make_mask(cv2.cvtColor(self.frame, cv2.COLOR_RGB2GRAY), global_threshold=self.thresh_mask)
 
-        if self.id_ in self.masks:
-            self.has_mask = False
+        # if self.id_ in self.masks:
+        #     self.has_mask = False
 
         if mask_check is not None:
             self.mask_frame = mask_check
@@ -240,6 +241,9 @@ class Tracker:
             self.last_kf_pos = None
             self.kf_results.appendleft(None)
 
+            kfx = None
+            kfy = None
+
         # Use LED position as earlier calculated using homography and stddev filtering to monitor its state (on or off)
         if self.n == 0:
             self.led_frame = self.frame[int((self.LED_pos[1]-2)):int((self.LED_pos[1]+2)),
@@ -256,8 +260,12 @@ class Tracker:
         else:
             self.led_state = 0
 
+        if not cx and not cy and kfx and kfy:
+            cx = kfx
+            cy = kfy
+
         if cx and cy:
-            if cx <= 15 or cx >= 785 or cy <= 15 or cy >= 585:
+            if cx <= 0 or cx >= 800 or cy <= 0 or cy >= 600:
                 cx = None
                 cy = None
 
