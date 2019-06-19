@@ -7,6 +7,7 @@ import base64
 import urllib
 import codecs
 import networkx as nx
+from scipy.signal import savgol_filter
 
 from src.validation import Validate
 from scipy.signal import savgol_filter
@@ -30,12 +31,25 @@ def fig2html(fig):
 
     return html
 
-def smooth(array):
-    new_array = np.zeros_like(array)
-    for i in range(1, len(array)):
-        new_array[i] = np.mean(array[i-1:i+1])
 
-    return new_array
+def smooth(array):
+
+    N = int(len(array)/10)
+
+    for k in range(N):
+        new_array = np.zeros_like(array)
+        for i in range(len(array)):
+            if i == 0:
+                new_array[i] = np.mean(array[i:i+1])
+            elif i == len(array):
+                new_array[i] = np.mean(array[i-1:i])
+            else:
+                new_array[i] = np.mean(array[i-1:i+1])
+        array = new_array
+
+    return array
+
+
 
 
 class TrialDisplay:
@@ -331,8 +345,8 @@ class TrialDisplay:
 
         for i in range(1, len(self.data)):
 
-            x, y = self.data[i, 0], self.data[i, 1]
-            x_prev, y_prev = self.data[i-1, 0], self.data[i-1, 1]
+            x, y = self.data[i, 1], self.data[i, 2]
+            x_prev, y_prev = self.data[i-1, 1], self.data[i-1, 2]
 
             if x and y and x_prev and y_prev:
                 d = distance(x, y, x_prev, y_prev)
