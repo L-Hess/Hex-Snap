@@ -104,6 +104,8 @@ class Tracker:
 
         self.masks = np.arange(200, 100000, 200)
 
+        self.largest_areas = [100]
+
     # Making a mask on basis of the input frame
     def make_mask(self, frame, global_threshold=70):
         """Create a new mask on basis of the input frame"""
@@ -123,22 +125,21 @@ class Tracker:
         return (x1, y1), (x2, y2)
 
     # Find the mouse in the frame (if present) and locate its position
-    def apply(self, frame, idx, n, mask_frame=None):
+    def apply(self, frame, idx, n, src, mask_frame=None):
         """Tracking of the mouse position on basis of masking"""
         self.id_ = idx
         mask_check = mask_frame
         self.n = n
 
+        cx, cy = None, None
+
         f_start = self.id * self.height
         f_end = (self.id + 1) * self.height
         self.frame = frame[f_start:f_end, :]
 
-        if n == 0 and self.id_ == 428:
-            path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/frame_{}.png'.format(n))
-            cv2.imwrite(path, self.frame)
-
-        if n == 1 and self.id_ == 430:
-            path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/frame_{}.png'.format(n))
+        # On the first frame, save mask
+        if self.id_ == 0:
+            path = pkg_resources.resource_filename(self.name, "/data/raw/{}/frame_images/frame_{}.png".format(src[len(src)-29:len(src)-10], n))
             cv2.imwrite(path, self.frame)
 
         # Check if a mask is already present, if not, create a new mask
@@ -167,15 +168,7 @@ class Tracker:
 
         # On the first frame, save mask
         if self.id_ == 0:
-            path = pkg_resources.resource_filename(self.name, '/Data/raw/Masks/mask_{}.png'.format(n))
-            cv2.imwrite(path, self.mask_frame)
-
-        if n == 0 and self.id_ == 428:
-            path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/mask_{}.png'.format(n))
-            cv2.imwrite(path, self.mask_frame)
-
-        if n == 1 and self.id_ == 430:
-            path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/mask_{}.png'.format(n))
+            path = pkg_resources.resource_filename(self.name, "/data/raw/{}/masks/mask_{}.png".format(src[len(src)-29:len(src)-10], n))
             cv2.imwrite(path, self.mask_frame)
 
         # Apply mask to frame
@@ -189,15 +182,19 @@ class Tracker:
         # Find the largest contour in the frame on basis of an earlier defined threshold
         _, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        min_mouse_area = np.mean(self.largest_areas)/1.2
+
         largest_cnt, largest_area = None, 0
         sum_area = 0
         for cnt in contours:
             area = int(cv2.contourArea(cnt))
-            if area > MIN_MOUSE_AREA:
+            if area > min_mouse_area:
                 sum_area += area
                 if area > largest_area:
                     largest_area = area
                     largest_cnt = cnt
+                    if largest_area < 2*min_mouse_area:
+                        self.largest_areas.append(largest_area)
 
         # Correct coordinates for search window location
         if largest_cnt is not None:
@@ -217,30 +214,6 @@ class Tracker:
             # center coordinates of contour
             self.search_window_size = max(SEARCH_WINDOW_SIZE, int(self.search_window_size * .75))
             cx, cy = centroid(largest_cnt)
-
-            self.frame_2 = self.frame
-
-            # contour = cv2.drawContours(self.frame, [largest_cnt], -1, (0, 0, 150), 2)
-            #
-            # if n == 0 and self.id_ == 428:
-            #     path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/contour_{}.png'.format(n))
-            #     cv2.imwrite(path, contour)
-            #
-            # if n == 1 and self.id_ == 430:
-            #     path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/contour_{}.png'.format(n))
-            #     cv2.imwrite(path, contour)
-
-            cv2.drawMarker(self.frame_2, (cx, cy), (0, 0, 150), markerType=cv2.MARKER_CROSS, markerSize=20, thickness=2, line_type=cv2.LINE_AA)
-
-
-            if n == 0 and self.id_ == 428:
-                path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/centroid_{}.png'.format(n))
-                cv2.imwrite(path, self.frame_2)
-
-
-            if n == 1 and self.id_ == 430:
-                path = pkg_resources.resource_filename(self.name, '/Data/raw/thesis_tracker/centroid_{}.png'.format(n))
-                cv2.imwrite(path, self.frame_2)
 
             # Save centroid location in results
             self.results.appendleft((cx, cy))
@@ -282,6 +255,11 @@ class Tracker:
             self.led_state = 1
         else:
             self.led_state = 0
+
+        if cx and cy:
+            if cx <= 15 or cx >= 785 or cy <= 15 or cy >= 585:
+                cx = None
+                cy = None
 
         # Save mouse position and LED state in log file
         if largest_cnt is None:

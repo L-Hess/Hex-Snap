@@ -66,10 +66,10 @@ class timecorrect:
         led_1 = self.dat_1[:, 3]
 
         # Calculates where in the log-files the LED-state goes from off to on (0 to 1)
-        led_0_peaks = np.diff(led_0) > 0
-        led_1_peaks = np.diff(led_1) > 0
-        i_0 = np.where(led_0_peaks == 1)[0]
-        i_1 = np.where(led_1_peaks == 1)[0]
+        led_0_peaks = np.diff(led_0)
+        led_1_peaks = np.diff(led_1)
+        i_0 = np.sort(np.append(np.where(led_0_peaks == 1)[0], np.where(led_0_peaks == -1)[0]))
+        i_1 = np.sort(np.append(np.where(led_1_peaks == 1)[0], np.where(led_1_peaks == -1)[0]))
         peak_diff_0 = np.diff(i_0)
         peak_diff_1 = np.diff(i_1)
 
@@ -99,25 +99,18 @@ class timecorrect:
                 self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
                 self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
 
-        with open(self.path_0, 'wb') as f:
-            np.savetxt(f, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state", comments='')
-        with open(self.path_1, 'wb') as f:
-            np.savetxt(f, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state", comments='')
+        return self.dat_0f, self.dat_1f
+
 
 
 class Linearization:
-    def __init__(self, pathname, sources):
+    def __init__(self, pathname, dat_0, dat_1, sources):
 
         # Load in the time aligned log files and corrected node positions
         # Ghost nodes are used for nodes that are off of the video
         # Dwell nodes are used for nodes that are off of the video
-        self.data_path_1 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}'
-                                                                     '/pos_log_file_tcorr_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        self.data_path_2 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}'
-                                                                     '/pos_log_file_tcorr_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-
-        self.dat_0 = np.genfromtxt(self.data_path_1, delimiter=',', skip_header=False)
-        self.dat_1 = np.genfromtxt(self.data_path_2, delimiter=',', skip_header=False)
+        self.dat_0 = dat_0
+        self.dat_1 = dat_1
 
         path = pkg_resources.resource_filename(pathname, "/data/interim/linearized_position_log_files/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         if not os.path.exists(path):
@@ -220,7 +213,7 @@ class GroundTruth:
             except OSError:
                 print("Creation of the directory %s failed" % path)
 
-        path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_stitched")
+        path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_gt/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         if not os.path.exists(path):
             try:
                 os.mkdir(path)
@@ -228,13 +221,6 @@ class GroundTruth:
                 print("Creation of the directory %s failed" % path)
 
         path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_stitched/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed" % path)
-
-        path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_gt/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         if not os.path.exists(path):
             try:
                 os.mkdir(path)
@@ -287,10 +273,13 @@ class GroundTruth:
 
             n += 1
 
+        return self.path_0, self.path_1
+
     def gt_stitch(self):
         path = pkg_resources.resource_filename(self.pathname,
                                                '/data/interim/pos_log_files_stitched/{}/pos_log_file_stitched.csv'.format(
-                                                   self.sources[0][len(self.sources[0]) - 29:len(self.sources[0]) - 10]))
+                                                   self.sources[0][
+                                                   len(self.sources[0]) - 29:len(self.sources[0]) - 10]))
         pos_log_file = open(path, 'w')
         pos_log_file.write('frame_n, x, y, first node, second node\n')
 
@@ -320,8 +309,8 @@ class GroundTruth:
                 dist = np.nan
 
             if not np.isnan(dist):
-                x = (dat_0[i, 7] + dat_1[i, 7])/2
-                y = (dat_0[i, 8] + dat_0[i, 8])/2
+                x = (dat_0[i, 7] + dat_1[i, 7]) / 2
+                y = (dat_0[i, 8] + dat_0[i, 8]) / 2
                 dist = np.nan
 
             if dist >= 80:
@@ -360,12 +349,37 @@ class Homography:
 
         self.pathname = pathname
 
+        path = pkg_resources.resource_filename(self.pathname, "/data/raw/{}".format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10]))
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed, this path probably already exists" % path)
+
         for n, source in enumerate(self.sources):
+            path = pkg_resources.resource_filename(self.pathname, "/data/raw/{}/frame_images".format(
+                sources[0][len(sources[0]) - 29:len(sources[0]) - 10], n))
+            if not os.path.exists(path):
+                try:
+                    os.mkdir(path)
+                except OSError:
+                    print("Creation of the directory %s failed, this path probably already exists" % path)
+
+            path = pkg_resources.resource_filename(self.pathname, "/data/raw/{}/masks".format(
+                sources[0][len(sources[0]) - 29:len(sources[0]) - 10], n))
+            if not os.path.exists(path):
+                try:
+                    os.mkdir(path)
+                except OSError:
+                    print("Creation of the directory %s failed, this path probably already exists" % path)
+
             cap = cv2.VideoCapture(source)
-            cap.set(1,1)
+            cap.set(1, 1)
             rt, frame = cap.read()
-            output = pkg_resources.resource_filename(self.pathname, '/data/raw/frame_images/im_{}.png'.format(n))
+            output = pkg_resources.resource_filename(self.pathname, "/data/raw/{}/frame_images/frame_{}.png".format(sources[0][len(sources[0])-29:len(sources[0])-10], n))
             cv2.imwrite(output, frame)
+            cap.release()
+            cv2.destroyAllWindows()
 
         path = pkg_resources.resource_filename(pathname, "/src/resources/aligned")
         if not os.path.exists(path):
@@ -380,8 +394,8 @@ class Homography:
         self.stand_nodes_top_path = pkg_resources.resource_filename(pathname, '/src/resources/default/node_pos_top.csv')
         self.stand_nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/resources/default/node_pos_bottom.csv')
 
-        self.im_0_path = pkg_resources.resource_filename(pathname, '/data/raw/frame_images/im_0.png')
-        self.im_1_path = pkg_resources.resource_filename(pathname, '/data/raw/frame_images/im_1.png')
+        self.im_0_path = pkg_resources.resource_filename(pathname, "/data/raw/{}/frame_images/frame_0.png".format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10]))
+        self.im_1_path = pkg_resources.resource_filename(pathname, "/data/raw/{}/frame_images/frame_1.png".format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10]))
 
         self.stand_LED_top_path = pkg_resources.resource_filename(pathname, '/src/resources/default/LED_top.csv')
         self.stand_LED_bot_path = pkg_resources.resource_filename(pathname, '/src/resources/default/LED_bot.csv')
@@ -406,7 +420,7 @@ class Homography:
         # Set up parameters for feature matching
         self.FLANN_INDEX_KDTREE = 0
         self.index_params = dict(algorithm=self.FLANN_INDEX_KDTREE, trees=5)
-        self.search_params = dict(checks=50)
+        self.search_params = dict(checks=20000)
 
         self.flann = cv2.FlannBasedMatcher(self.index_params, self.search_params)
 
@@ -692,6 +706,53 @@ class TrialCut:
         for i in range(len(self.log_onsets)):
 
             if not np.isnan(self.log_onsets[i]) and not np.isnan(self.log_offsets[i]):
+                # print(self.log_onsets[i], self.log_offsets[i])
+
+                path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}".format(
+                    self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
+                if not os.path.exists(path):
+                    try:
+                        os.mkdir(path)
+                    except OSError:
+                        print("Creation of the directory %s failed" % path)
+
+                path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}/position_log_files".format(
+                    self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
+                if not os.path.exists(path):
+                    try:
+                        os.mkdir(path)
+                    except OSError:
+                        print("Creation of the directory %s failed" % path)
+
+                if os.path.exists(path):
+                    self.path_0 = path + '/pos_log_file_0.csv'
+                    self.path_1 = path + '/pos_log_file_1.csv'
+
+                    self.dat_0f = self.dat_0[self.log_onsets[i]:self.log_offsets[i]]
+                    self.dat_1f = self.dat_1[self.log_onsets[i]:self.log_offsets[i]]
+
+                    # Sometimes experimenters double click the physical clicker by mistake, these 'trials'
+                    # get cut out immediately; it is assumed no trial will take less than 5 (time aligned) frames
+                    if not self.log_offsets[i]-self.log_onsets[i] <= 5:
+
+                        np.savetxt(self.path_0, self.dat_0f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
+                        np.savetxt(self.path_1, self.dat_1f, delimiter=",", header="x,y,frame_n,LED_state, rel_pos, first node, second node, gt_x, gt_y", comments='')
+
+                        n += 1
+
+    def cut_stitch(self, pathname):
+        path = pkg_resources.resource_filename(pathname, "/data/processed/{}".format(
+            self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10]))
+        if not os.path.exists(path):
+            try:
+                os.mkdir(path)
+            except OSError:
+                print("Creation of the directory %s failed" % path)
+
+        n = 1
+        for i in range(len(self.log_onsets)):
+
+            if not np.isnan(self.log_onsets[i]) and not np.isnan(self.log_offsets[i]):
 
                 path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}".format(
                     self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
@@ -716,8 +777,7 @@ class TrialCut:
 
                     # Sometimes experimenters double click the physical clicker by mistake, these 'trials'
                     # get cut out immediately; it is assumed no trial will take less than 5 (time aligned) frames
-                    if not self.log_offsets[i]-self.log_onsets[i] <= 5:
-
+                    if not self.log_offsets[i] - self.log_onsets[i] <= 5:
                         np.savetxt(self.path, self.dat_f, delimiter=",", header="frame_n, x, y", comments='')
 
                         n += 1
