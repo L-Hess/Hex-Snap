@@ -3,6 +3,8 @@ import numpy as np
 import logging
 import cv2
 import os
+import pandas as pd
+import xlrd
 
 
 # Euclidean distance
@@ -653,32 +655,29 @@ class TrialCut:
         self.dat_1 = np.genfromtxt(data[1], delimiter=',', skip_header=False)
         self.dat = np.genfromtxt(data[2], delimiter=',', skip_header=True)
 
+        self.df = pd.read_excel(self.log_path, dtype='str')
+        self.array = self.df.values
+
+        self.log_onsets, self.log_offsets = [], []
+
     def log_data(self):
         vid_t = (3600 * int(self.path_vid_0[len(self.path_vid_0)-18:len(self.path_vid_0)-16]) + 60 * int(self.path_vid_0[len(self.path_vid_0)-15:len(self.path_vid_0)-13]) + int(
             self.path_vid_0[len(self.path_vid_0)-12:len(self.path_vid_0)-10])) * 15
 
-        act = []
-        act_line = ["Trial ++++++++ active ++++++++"]
+        onsets = self.array[:, 2][:]
+        offsets = self.array[:, 3][:]
 
-        inact = []
-        inact_line = ["Trial ------- inactive -------"]
+        self.onsets = []
+        for i in range(len(onsets)):
+            self.onsets.append(onsets[i][11:19])
 
-        with open(self.log_path) as f:
-            f = f.readlines()
+        self.offsets = []
+        for i in range(len(onsets)):
+            self.offsets.append(offsets[i][11:19])
 
-            for line in f:
-                for phrase in act_line:
-                    if phrase in line:
-                        act.append(line)
-                for phrase in inact_line:
-                    if phrase in line:
-                        inact.append(line)
-
-        self.log_onsets, self.log_offsets = [], []
-
-        for i in range(len(act)):
-            on_t = (3600 * int(act[i][11:13]) + 60 * int(act[i][14:16]) + int(act[i][17:19])) * 15 - vid_t
-            off_t = (3600 * int(inact[i][11:13]) + 60 * int(inact[i][14:16]) + int(inact[i][17:19])) * 15 - vid_t
+        for i in range(len(self.onsets)):
+            on_t = (3600 * int(self.onsets[i][0:2]) + 60 * int(self.onsets[i][3:5]) + int(self.onsets[i][6:8])) * 15 - vid_t
+            off_t = (3600 * int(self.offsets[i][0:2]) + 60 * int(self.offsets[i][3:5]) + int(self.offsets[i][6:8])) * 15 - vid_t
 
             on_tf = np.argwhere(self.dat_0 == on_t)
             if on_t in self.dat_0:

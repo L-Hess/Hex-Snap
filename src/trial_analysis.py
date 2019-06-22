@@ -5,13 +5,11 @@ import os
 import io
 import base64
 import urllib
-import codecs
 import networkx as nx
-from scipy.signal import savgol_filter
+import pandas as pd
+import xlsxwriter
 
 from src.validation import Validate
-from scipy.signal import savgol_filter
-
 
 # Euclidean distance
 def distance(x1, y1, x2, y2):
@@ -50,19 +48,36 @@ def smooth(array):
     return array
 
 
-
-
-class TrialDisplay:
+class TrialAnalysis:
     def __init__(self, pathname, paths):
         self.path_vid_0 = paths[0]
         self.path_vid_1 = paths[1]
         self.log_path = paths[2]
         self.pathname = pathname
 
+        df = pd.read_excel(self.log_path)
+        rows, _ = df.shape
+        template = np.zeros(rows)
+
+        self.paths = template
+        self.path_lengths = template
+        self.shortest_path_lengths = template
+        self.dwell_data = template
+        self.velocities = template
+        self.correct_path = template
+
+        self.paths = []
+        self.path_lengths = []
+        self.shortest_path_lengths = []
+        self.dwell_data = []
+        self.velocities = []
+        self.correct_path = []
+        self.number = []
+
         self.ref_nodes_path = pkg_resources.resource_filename(pathname, '/src/Resources/default/ref_nodes.csv')
         self.ref_nodes = np.genfromtxt(self.ref_nodes_path, delimiter=',', skip_header=True)
 
-        flower_graph, node_positions = TrialDisplay.gt_map(self)
+        flower_graph, node_positions = TrialAnalysis.gt_map(self)
 
         max_dist_log, mean_dist_log = [], []
 
@@ -92,19 +107,29 @@ class TrialDisplay:
                         data_path = os.path.join(path, dir, 'position_log_files', 'pos_log_file.csv')
                         self.data = np.genfromtxt(data_path, delimiter=',', skip_header=True)
 
-                        path_log, path_length, shortest_path_length = TrialDisplay.path_metrics(self, flower_graph,
-                                                                                                node_positions)
-                        dwell_data = TrialDisplay.dwell_times(self)
-
-                        velocities = TrialDisplay.velocity(self)
-
                         n = int(dir.replace("trial_", ""))
+                        number = n - 1
 
-                        TrialDisplay.make_html_tracking(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
-                        TrialDisplay.make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log,
-                                                        path_length, shortest_path_length, dwell_data, velocities)
+                        path_log, path_length, shortest_path_length, correct_path = TrialAnalysis.path_metrics(self, flower_graph,
+                                                                                                node_positions, number)
+                        dwell_data = TrialAnalysis.dwell_times(self)
 
-        TrialDisplay.make_summary_html_tracking(self, pathname, path, max_dist_log, mean_dist_log)
+                        velocities = TrialAnalysis.velocity(self)
+
+                        # TrialAnalysis.make_html_tracking(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
+                        # TrialAnalysis.make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log,
+                        #                                 path_length, shortest_path_length, dwell_data, velocities)
+
+                        self.paths.append(path_log)
+                        self.path_lengths.append(path_length)
+                        self.shortest_path_lengths.append(shortest_path_length)
+                        self.correct_path.append(correct_path)
+                        self.dwell_data.append(dwell_data)
+                        self.velocities.append(np.mean(velocities))
+                        self.number.append(n)
+
+        # TrialAnalysis.make_summary_html_tracking(self, pathname, path, max_dist_log, mean_dist_log)
+        TrialAnalysis.data_log(self, path)
 
 
     def make_html_tracking(self, savepath, time_align, gt_dist, max_dist, mean_dist, n):
@@ -276,7 +301,7 @@ class TrialDisplay:
 
         return flower_graph, node_positions
 
-    def path_metrics(self, flower_graph, node_positions):
+    def path_metrics(self, flower_graph, node_positions, n):
 
         closest_nodes = []
 
@@ -289,33 +314,44 @@ class TrialDisplay:
             dist1, closest_node = np.min(dist), self.ref_nodes[np.argmin(dist), 2]
             if np.isnan(dist1):
                 closest_node = np.nan
-
-            # Find the second closest node and save its position and node number
-            dist[np.argmin(dist)] = 1e12
-            dist2, second_closest_node = np.min(dist), self.ref_nodes[np.argmin(dist), 2]
-            if np.isnan(dist2):
-                second_closest_node = np.nan
-
-            closest_nodes.append(closest_node)
+                closest_nodes.append(str(closest_node))
+            else:
+                closest_nodes.append(str(int(closest_node)))
 
         closest_nodes = [x for x in closest_nodes if str(x) != 'nan']
 
         path_log = []
+        path_log_str = ''
         for i in range(len(closest_nodes)):
             if i == 0:
-                path_log.append(int(closest_nodes[i]))
+                path_log.append(str(closest_nodes[i]))
+                path_log_str += str(closest_nodes[i])+','
             else:
-
                 if path_log[len(path_log)-1] != closest_nodes[i]:
-                    path_log.append(int(closest_nodes[i]))
+                    path_log.append(str(int(closest_nodes[i])))
+                    path_log_str += str(int(closest_nodes[i]))+','
+
+        path_log_str = path_log_str[:len(path_log_str)-1]
 
         mg = nx.Graph(flower_graph)
         nx.spring_layout(mg, pos=node_positions)
 
-        path_length = len(path_log)
-        shortest_path_length = len(nx.shortest_path(mg, path_log[0], path_log[len(path_log)-1]))
+        df = pd.read_excel(self.log_path)
+        start = df['start_location'].iloc[int(n)]
+        goal = df['goal_location'].iloc[int(n)]
 
-        return path_log, path_length, shortest_path_length
+        path_length = len(path_log)
+        shortest_path_length = len(nx.shortest_path(mg, start, goal))
+
+        df = pd.read_excel(self.log_path)
+        path = df['Path'].iloc[int(n)]
+
+        if path == path_log_str:
+            correct_path = True
+        else:
+            correct_path = False
+
+        return path_log_str, path_length, shortest_path_length, correct_path
 
     def dwell_times(self):
 
@@ -359,3 +395,26 @@ class TrialDisplay:
         velocities = smooth(velocities)
 
         return velocities
+
+    def data_log(self, path):
+        df = pd.read_excel(self.log_path)
+        savepath = os.path.join(path, 'trial_data_{}.xlsx'.format(path[len(path)-19:]))
+
+        rows, _ = df.shape
+
+        n = rows-len(self.paths)
+        df.drop(df.tail(n).index, inplace=True)
+
+        df['tracked_path'] = self.paths
+        df['Tracked path correct?'] = self.correct_path
+        df['path length'] = self.path_lengths
+        df['shortest_path_length'] = self.shortest_path_lengths
+        df['average velocity (distance/frame)'] = self.velocities
+        df['n'] = self.number
+        # df['dwell times'] = self.dwell_data
+
+        df.sort_values('n', axis=0, ascending=True, inplace=False, kind='quicksort', na_position='last')
+
+        writer = pd.ExcelWriter(savepath, engine='xlsxwriter')
+        df.to_excel(writer, sheet_name='Sheet1')
+        writer.save()
