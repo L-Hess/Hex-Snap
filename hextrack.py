@@ -11,7 +11,6 @@ from tqdm import tqdm
 from moviepy.editor import VideoFileClip
 
 from src.tracker import Tracker
-from src.Analysis import Display
 from src.preprocessing import timecorrect
 from src.preprocessing import Linearization
 from src.preprocessing import Homography
