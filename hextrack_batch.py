@@ -5,7 +5,7 @@ import argparse
 import logging
 import pkg_resources
 from pathlib import Path
-import threading
+
 import os
 from tqdm import tqdm
 from moviepy.editor import VideoFileClip
@@ -19,7 +19,6 @@ from src.preprocessing import Linearization
 from src.preprocessing import GroundTruth
 from src.preprocessing import Homography
 from src.preprocessing import TrialCut
-from src.validation import Validate
 from src.trial_analysis import TrialAnalysis
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system

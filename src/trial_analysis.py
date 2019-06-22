@@ -8,16 +8,20 @@ import urllib
 import networkx as nx
 import pandas as pd
 import xlsxwriter
-
 from src.validation import Validate
+
 
 # Euclidean distance
 def distance(x1, y1, x2, y2):
+    """Euclidean distance."""
+
     r = np.sqrt((x1-x2)**2+(y1-y2)**2)
     return r
 
 
 def fig2html(fig):
+    """Convert a figure to html format"""
+
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
     buf.seek(0)
@@ -31,6 +35,7 @@ def fig2html(fig):
 
 
 def smooth(array):
+    """Smoothing of an array"""
 
     N = int(len(array)/10)
 
@@ -50,22 +55,14 @@ def smooth(array):
 
 class TrialAnalysis:
     def __init__(self, pathname, paths):
+
+        # Load in all data and pathnames for the relevant files
         self.path_vid_0 = paths[0]
         self.path_vid_1 = paths[1]
         self.log_path = paths[2]
         self.pathname = pathname
 
-        df = pd.read_excel(self.log_path)
-        rows, _ = df.shape
-        template = np.zeros(rows)
-
-        self.paths = template
-        self.path_lengths = template
-        self.shortest_path_lengths = template
-        self.dwell_data = template
-        self.velocities = template
-        self.correct_path = template
-
+        # Empty lists to store trial data in for later conversion to excel file
         self.paths = []
         self.path_lengths = []
         self.shortest_path_lengths = []
@@ -74,16 +71,23 @@ class TrialAnalysis:
         self.correct_path = []
         self.number = []
 
+        # Load in the reference node positions of the ground truth map
         self.ref_nodes_path = pkg_resources.resource_filename(pathname, '/src/Resources/default/ref_nodes.csv')
         self.ref_nodes = np.genfromtxt(self.ref_nodes_path, delimiter=',', skip_header=True)
 
+        # Create the ground truth map that can be used as input for a networkx graph
         flower_graph, node_positions = TrialAnalysis.gt_map(self)
 
+        # Emtpy lists to store the maximum and minimum distances between the two video sources of trials in
         max_dist_log, mean_dist_log = [], []
 
+        # Root directory of the trial data
         path = pkg_resources.resource_filename(self.pathname, "/data/processed/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
 
+        # Loops through all trial data and appends relevant information to before-mentioned lists
         def dir_loop(dir_count, dirs, path):
+            """Loops through data of all trials and appends analysis data to relevant list"""
+
             if 'trial_{}'.format(dir_count) in dirs:
                 try:
                     path_0 = os.path.join(path, 'trial_{}'.format(dir_count), 'position_log_files', 'pos_log_file_0.csv')
@@ -103,21 +107,24 @@ class TrialAnalysis:
                     data_path = os.path.join(path, 'trial_{}'.format(dir_count), 'position_log_files', 'pos_log_file.csv')
                     self.data = np.genfromtxt(data_path, delimiter=',', skip_header=True)
 
+                    # Trial number
                     n = int(dir_count)
+
+                    # List indication number
                     number = n - 1
 
+                    # Calculate all path metrics for a trial
                     path_log, path_length, shortest_path_length, correct_path = TrialAnalysis.path_metrics(self,
                                                                                                            flower_graph,
                                                                                                            node_positions,
-                                                                                                           number)
+                                                                                                             number)
+                    # Calculate dwell times for all nodes for a trial
                     dwell_data = TrialAnalysis.dwell_times(self)
 
+                    # Calculate the velocities of all frames of a trial
                     velocities = TrialAnalysis.velocity(self)
 
-                    # TrialAnalysis.make_html_tracking(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
-                    # TrialAnalysis.make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log,
-                    #                                 path_length, shortest_path_length, dwell_data, velocities)
-
+                    # Append all calculated data of a trial to the relevant list
                     self.paths.append(path_log)
                     self.path_lengths.append(path_length)
                     self.shortest_path_lengths.append(shortest_path_length)
@@ -125,21 +132,31 @@ class TrialAnalysis:
                     self.dwell_data.append(dwell_data)
                     self.velocities.append(np.mean(velocities))
 
+                    TrialAnalysis.make_html_tracking(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
+                    TrialAnalysis.make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log,
+                                                    path_length, shortest_path_length, dwell_data, velocities)
+
                     dir_count += 1
 
                     dir_loop(dir_count, dirs, path)
 
+                # If an OSError is present, the trial does not exist anymore, thus only loops until gone through all
+                #  data
                 except OSError:
                     pass
 
+        # Begin at trial 1
         dir_count = 1
         dirs = os.listdir(path)
+
+        # Loop through all trials
         dir_loop(dir_count, dirs, path)
 
+        # Create a new excel file containing all analysis data
         TrialAnalysis.data_log(self, path)
 
-
     def make_html_tracking(self, savepath, time_align, gt_dist, max_dist, mean_dist, n):
+        """Create a HTML file of the tracking data of a trial"""
 
         report = ''
         with open('{}/TRACKING_REPORT.html'.format(savepath), 'w') as rf:
@@ -178,6 +195,7 @@ class TrialAnalysis:
             report = ''
 
     def make_summary_html_tracking(self, pathname, path, max_dist_log, mean_dist_log):
+        """Creates a HTML file containing a summary overview of all trials"""
 
         max_dist = max(max_dist_log)
         mean_dist = np.mean(mean_dist_log)
@@ -228,6 +246,7 @@ class TrialAnalysis:
             report = ''
 
     def make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log, path_length, shortest_path_length, dwell_data, velocities):
+        """Create a HTML file containing the relevant analysis information of a trial"""
 
         report = ''
         with open('{}/ANALYSIS_REPORT.html'.format(savepath), 'w') as rf:
@@ -274,6 +293,9 @@ class TrialAnalysis:
             report = ''
 
     def gt_map(self):
+        """Creates a standard flower graph of the Hex-Maze (ground truth) and find the positions of all nodes"""
+
+        # Standard flower graph of the Hex-Maze containing all nodes and connections between them
         flower_graph = {1: [2, 6],
                         2: [1, 3],
                         3: [2, 4, 7],
@@ -299,6 +321,7 @@ class TrialAnalysis:
                         23: [22, 24],
                         24: [16, 23]}
 
+        # Create a list with node positions for all nodes of the flower graph
         node_positions = {}
         with open(self.ref_nodes_path, 'r') as npf:
             next(npf)
@@ -309,6 +332,8 @@ class TrialAnalysis:
         return flower_graph, node_positions
 
     def path_metrics(self, flower_graph, node_positions, n):
+        """Calculate the path taken (tracked), path length, shortest path length and gives the path as filed
+         by the experimenter together with if this is in correspondence with the tracked path of a trial"""
 
         closest_nodes = []
 
@@ -327,6 +352,7 @@ class TrialAnalysis:
 
         closest_nodes = [x for x in closest_nodes if str(x) != 'nan']
 
+        # Find the path taken by the mouse during the trial
         path_log = []
         path_log_str = ''
         for i in range(len(closest_nodes)):
@@ -340,6 +366,7 @@ class TrialAnalysis:
 
         path_log_str = path_log_str[:len(path_log_str)-1]
 
+        # Find the shortest path possible during the trial and the path length of the path taken
         mg = nx.Graph(flower_graph)
         nx.spring_layout(mg, pos=node_positions)
 
@@ -353,6 +380,7 @@ class TrialAnalysis:
         df = pd.read_excel(self.log_path)
         path = df['Path'].iloc[int(n)]
 
+        # Checks if the tracker finds the same path taken as the experimenters data
         if path == path_log_str:
             correct_path = True
         else:
@@ -361,6 +389,7 @@ class TrialAnalysis:
         return path_log_str, path_length, shortest_path_length, correct_path
 
     def dwell_times(self):
+        """Calculates the dwell times in seconds for all node positions of a trial"""
 
         closest_nodes = []
 
@@ -383,6 +412,7 @@ class TrialAnalysis:
         return [array, counts]
 
     def velocity(self):
+        """Calculates the velocities for each frame (in m/s) of a trial"""
 
         velocities = []
 
@@ -404,6 +434,9 @@ class TrialAnalysis:
         return velocities
 
     def data_log(self, path):
+        """Creates an excel file with all relevant data for the entire experiment"""
+
+        # Finding the relevant part of the input log file for the experiment
         df = pd.read_excel(self.log_path)
         savepath = os.path.join(path, 'trial_data_{}.xlsx'.format(path[len(path)-19:]))
         start_time = 3600*int(path[len(path)-8:len(path)-6]) + 60*int(path[len(path)-5:len(path)-3]) + int(path[len(path)-2:])
@@ -418,6 +451,7 @@ class TrialAnalysis:
         n = rows-len(self.paths)
         df.drop(df.tail(n).index, inplace=True)
 
+        # Save all analysis data in the new excel file
         df['tracked_path'] = self.paths
         df['Tracked path correct?'] = self.correct_path
         df['path length'] = self.path_lengths
@@ -426,5 +460,5 @@ class TrialAnalysis:
         # df['dwell times'] = self.dwell_data
 
         writer = pd.ExcelWriter(savepath, engine='xlsxwriter')
-        df.to_excel(writer, sheet_name='Sheet1')
+        df.to_excel(writer, sheet_name='Analysis')
         writer.save()
