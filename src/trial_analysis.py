@@ -82,53 +82,60 @@ class TrialAnalysis:
         max_dist_log, mean_dist_log = [], []
 
         path = pkg_resources.resource_filename(self.pathname, "/data/processed/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
-        if os.path.exists(path):
-            for dirs, subdirs, files in os.walk(path):
-                for dir in subdirs:
-                    if not dir.endswith("position_log_files") and not dir.endswith("ground_truth"):
-                        try:
-                            summary_log
-                        except UnboundLocalError:
-                            summary_log = np.zeros((2, len(subdirs)))
-                        path_0 = os.path.join(path, dir, 'position_log_files', 'pos_log_file_0.csv')
-                        path_1 = os.path.join(path, dir, 'position_log_files', 'pos_log_file_1.csv')
-                        savepath = os.path.join(path, dir)
-                        validate = Validate(path_0, path_1)
-                        time_diff = validate.time_alignment_check()
-                        dist_diff = validate.gt_distance_check()
-                        cleaned_dist = [x for x in dist_diff if str(x) != 'nan']
-                        max_dist, mean_dist = np.nan, np.nan
-                        if cleaned_dist:
-                            max_dist = max(cleaned_dist)
-                            mean_dist = np.mean(cleaned_dist)
-                            max_dist_log.append(max_dist)
-                            mean_dist_log.append(mean_dist)
 
-                        data_path = os.path.join(path, dir, 'position_log_files', 'pos_log_file.csv')
-                        self.data = np.genfromtxt(data_path, delimiter=',', skip_header=True)
+        def dir_loop(dir_count, dirs, path):
+            if 'trial_{}'.format(dir_count) in dirs:
+                try:
+                    path_0 = os.path.join(path, 'trial_{}'.format(dir_count), 'position_log_files', 'pos_log_file_0.csv')
+                    path_1 = os.path.join(path, 'trial_{}'.format(dir_count), 'position_log_files', 'pos_log_file_1.csv')
+                    savepath = os.path.join(path, 'trial_{}'.format(dir_count))
+                    validate = Validate(path_0, path_1)
+                    time_diff = validate.time_alignment_check()
+                    dist_diff = validate.gt_distance_check()
+                    cleaned_dist = [x for x in dist_diff if str(x) != 'nan']
+                    max_dist, mean_dist = np.nan, np.nan
+                    if cleaned_dist:
+                        max_dist = max(cleaned_dist)
+                        mean_dist = np.mean(cleaned_dist)
+                        max_dist_log.append(max_dist)
+                        mean_dist_log.append(mean_dist)
 
-                        n = int(dir.replace("trial_", ""))
-                        number = n - 1
+                    data_path = os.path.join(path, 'trial_{}'.format(dir_count), 'position_log_files', 'pos_log_file.csv')
+                    self.data = np.genfromtxt(data_path, delimiter=',', skip_header=True)
 
-                        path_log, path_length, shortest_path_length, correct_path = TrialAnalysis.path_metrics(self, flower_graph,
-                                                                                                node_positions, number)
-                        dwell_data = TrialAnalysis.dwell_times(self)
+                    n = int(dir_count)
+                    number = n - 1
 
-                        velocities = TrialAnalysis.velocity(self)
+                    path_log, path_length, shortest_path_length, correct_path = TrialAnalysis.path_metrics(self,
+                                                                                                           flower_graph,
+                                                                                                           node_positions,
+                                                                                                           number)
+                    dwell_data = TrialAnalysis.dwell_times(self)
 
-                        # TrialAnalysis.make_html_tracking(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
-                        # TrialAnalysis.make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log,
-                        #                                 path_length, shortest_path_length, dwell_data, velocities)
+                    velocities = TrialAnalysis.velocity(self)
 
-                        self.paths.append(path_log)
-                        self.path_lengths.append(path_length)
-                        self.shortest_path_lengths.append(shortest_path_length)
-                        self.correct_path.append(correct_path)
-                        self.dwell_data.append(dwell_data)
-                        self.velocities.append(np.mean(velocities))
-                        self.number.append(n)
+                    # TrialAnalysis.make_html_tracking(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
+                    # TrialAnalysis.make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log,
+                    #                                 path_length, shortest_path_length, dwell_data, velocities)
 
-        # TrialAnalysis.make_summary_html_tracking(self, pathname, path, max_dist_log, mean_dist_log)
+                    self.paths.append(path_log)
+                    self.path_lengths.append(path_length)
+                    self.shortest_path_lengths.append(shortest_path_length)
+                    self.correct_path.append(correct_path)
+                    self.dwell_data.append(dwell_data)
+                    self.velocities.append(np.mean(velocities))
+
+                    dir_count += 1
+
+                    dir_loop(dir_count, dirs, path)
+
+                except OSError:
+                    pass
+
+        dir_count = 1
+        dirs = os.listdir(path)
+        dir_loop(dir_count, dirs, path)
+
         TrialAnalysis.data_log(self, path)
 
 
@@ -410,7 +417,6 @@ class TrialAnalysis:
         df['path length'] = self.path_lengths
         df['shortest_path_length'] = self.shortest_path_lengths
         df['average velocity (distance/frame)'] = self.velocities
-        df['n'] = self.number
         # df['dwell times'] = self.dwell_data
 
         df.sort_values('n', axis=0, ascending=True, inplace=False, kind='quicksort', na_position='last')
