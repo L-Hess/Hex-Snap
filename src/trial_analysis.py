@@ -37,9 +37,9 @@ def fig2html(fig):
 def smooth(array):
     """Smoothing of an array"""
 
-    N = int(len(array)/10)
+    n = int(len(array)/10)
 
-    for k in range(N):
+    for k in range(n):
         new_array = np.zeros_like(array)
         for i in range(len(array)):
             if i == 0:
@@ -82,7 +82,9 @@ class TrialAnalysis:
         max_dist_log, mean_dist_log = [], []
 
         # Root directory of the trial data
-        path = pkg_resources.resource_filename(self.pathname, "/data/processed/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
+        path = pkg_resources.resource_filename(self.pathname, "/data/processed/{}"
+                                               .format(self.path_vid_0[len(self.path_vid_0)-29:
+                                                                       len(self.path_vid_0)-10]))
 
         # Loops through all trial data and appends relevant information to before-mentioned lists
         def dir_loop(dir_count, dirs, path):
@@ -114,10 +116,8 @@ class TrialAnalysis:
                     number = n - 1
 
                     # Calculate all path metrics for a trial
-                    path_log, path_length, shortest_path_length, correct_path = TrialAnalysis.path_metrics(self,
-                                                                                                           flower_graph,
-                                                                                                           node_positions,
-                                                                                                             number)
+                    path_log, path_length, shortest_path_length, correct_path = \
+                        TrialAnalysis.path_metrics(self, flower_graph, node_positions, number)
                     # Calculate dwell times for all nodes for a trial
                     dwell_data = TrialAnalysis.dwell_times(self)
 
@@ -134,7 +134,7 @@ class TrialAnalysis:
 
                     TrialAnalysis.make_html_tracking(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
                     TrialAnalysis.make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log,
-                                                    path_length, shortest_path_length, dwell_data, velocities)
+                                                     path_length, shortest_path_length, dwell_data, velocities)
 
                     dir_count += 1
 
@@ -192,7 +192,6 @@ class TrialAnalysis:
 
         with open('{}/TRACKING_REPORT.html'.format(savepath), 'w') as rf:
             rf.write(report)
-            report = ''
 
     def make_summary_html_tracking(self, pathname, path, max_dist_log, mean_dist_log):
         """Creates a HTML file containing a summary overview of all trials"""
@@ -200,8 +199,10 @@ class TrialAnalysis:
         max_dist = max(max_dist_log)
         mean_dist = np.mean(mean_dist_log)
 
-        origin_path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_gt/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
-        val = Validate(origin_path + '/pos_log_file_gt_0.csv', origin_path +'/pos_log_file_gt_1.csv')
+        origin_path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_gt/{}"
+                                                      .format(self.path_vid_0[len(self.path_vid_0)-29:
+                                                                              len(self.path_vid_0)-10]))
+        val = Validate(origin_path + '/pos_log_file_gt_0.csv', origin_path + '/pos_log_file_gt_1.csv')
         dist_series = val.gt_distance_check()
 
         cleaned_dist = [x for x in dist_series if str(x) != 'nan']
@@ -221,8 +222,10 @@ class TrialAnalysis:
             report += '<B> Ground truth distance between sources <B>' + '<br>'
             report += fig2html(fig_2) + '<br>'
             report += '<br>'
-            report += '<i> Maximum distance between sources across whole video = {} <i>'.format(max_dist_series) + '<br>'
-            report += '<i> Average distance between sources across whole video = {} <i>'.format(mean_dist_series) + '<br>'
+            report += '<i> Maximum distance between sources across whole video = {} <i>'.format(max_dist_series)\
+                      + '<br>'
+            report += '<i> Average distance between sources across whole video = {} <i>'.format(mean_dist_series)\
+                      + '<br>'
             report += '<br>'
             report += '<i> Maximum distance between sources across all trials = {} <i>'.format(max_dist) + '<br>'
             report += '<i> Average distance between sources across all trials = {} <i>'.format(mean_dist) + '<br>'
@@ -243,9 +246,9 @@ class TrialAnalysis:
 
         with open('{}/TRACKING_REPORT_SUMMARY.html'.format(path), 'w') as rf:
             rf.write(report)
-            report = ''
 
-    def make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log, path_length, shortest_path_length, dwell_data, velocities):
+    def make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log, path_length,
+                           shortest_path_length, dwell_data, velocities):
         """Create a HTML file containing the relevant analysis information of a trial"""
 
         report = ''
@@ -290,7 +293,6 @@ class TrialAnalysis:
 
         with open('{}/ANALYSIS_REPORT.html'.format(savepath), 'w') as rf:
             rf.write(report)
-            report = ''
 
     def gt_map(self):
         """Creates a standard flower graph of the Hex-Maze (ground truth) and find the positions of all nodes"""
@@ -439,9 +441,11 @@ class TrialAnalysis:
         # Finding the relevant part of the input log file for the experiment
         df = pd.read_excel(self.log_path)
         savepath = os.path.join(path, 'trial_data_{}.xlsx'.format(path[len(path)-19:]))
-        start_time = 3600*int(path[len(path)-8:len(path)-6]) + 60*int(path[len(path)-5:len(path)-3]) + int(path[len(path)-2:])
+        start_time = 3600*int(path[len(path)-8:len(path)-6]) + 60*int(path[len(path)-5:
+                                                                           len(path)-3]) + int(path[len(path)-2:])
         trial_starts = df['timestamp_start_trial'].astype('str')
-        trial_starts = np.array([3600*int(x[11:13]) + 60*int(x[14:16]) + int(x[17:19]) - start_time for x in trial_starts])
+        trial_starts = np.array([3600*int(x[11:13]) + 60*int(x[14:16]) + int(x[17:19]) - start_time for x in
+                                 trial_starts])
 
         stamps = np.nonzero(trial_starts > 0)
 

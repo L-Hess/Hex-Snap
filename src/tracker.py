@@ -4,21 +4,18 @@ import numpy as np
 from collections import deque
 import pkg_resources
 from src.kalman import KalmanFilter
-from matplotlib import pyplot as plt
 
-THICKNESS_MINOR_CONTOUR = 1
-THICKNESS_MAJOR_CONTOUR = 1
-DRAW_MINOR_CONTOURS = False
-DRAW_MAJOR_CONTOURS = True
-
-TRAIL_LENGTH = 128
-DRAW_TRAIL = True
-DRAW_KF_TRAIL = True
+# Kalman filter cannot be older than 15 frames, otherwise deemed insufficiently informed to predict mouse position
 KF_REGISTRATION_AGE = 15
 
+# Window size for the search window around the last recorded mouse position
 SEARCH_WINDOW_SIZE = 60
 
+# Kernel for Kalman filtering
 KERNEL_3 = np.ones((3, 3), np.uint8)
+
+# Saves past positions predicted by the Kalman filter
+TRAIL_LENGTH = 10
 
 
 # Simple calculation of the centroid of a contour
@@ -101,9 +98,7 @@ class Tracker:
 
         self.LED_pos = LED_pos
 
-        self.masks = np.arange(200, 100000, 200)
-
-        self.largest_areas = [100]
+        self.largest_areas = np.full(20, 100)
 
     # Making a mask on basis of the input frame
     def make_mask(self, frame, global_threshold=70):
@@ -125,14 +120,13 @@ class Tracker:
 
     # Find the mouse in the frame (if present) and locate its position
     def apply(self, frame, idx, n, src, mask_frame=None):
-        """Tracking of the mouse position on basis of masking"""
+        """Tracking of the mouse position on basis of masking and a kalman filter"""
+
         self.id_ = idx
         mask_check = mask_frame
         self.n = n
 
         cx, cy = None, None
-        kfx = None
-        kfy = None
 
         f_start = self.id * self.height
         f_end = (self.id + 1) * self.height
@@ -140,7 +134,8 @@ class Tracker:
 
         # On the first frame, save mask
         if self.id_ == 0:
-            path = pkg_resources.resource_filename(self.name, "/data/raw/{}/frame_images/frame_{}.png".format(src[len(src)-29:len(src)-10], n))
+            path = pkg_resources.resource_filename(self.name, "/data/raw/{}/frame_images/frame_{}.png".
+                                                   format(src[len(src)-29:len(src)-10], n))
             cv2.imwrite(path, self.frame)
 
         # Check if a mask is already present, if not, create a new mask
@@ -169,7 +164,8 @@ class Tracker:
 
         # On the first frame, save mask
         if self.id_ == 0:
-            path = pkg_resources.resource_filename(self.name, "/data/raw/{}/masks/mask_{}.png".format(src[len(src)-29:len(src)-10], n))
+            path = pkg_resources.resource_filename(self.name, "/data/raw/{}/masks/mask_{}.png"
+                                                   .format(src[len(src)-29:len(src)-10], n))
             cv2.imwrite(path, self.mask_frame)
 
         # Apply mask to frame
@@ -183,6 +179,9 @@ class Tracker:
         # Find the largest contour in the frame on basis of an earlier defined threshold
         _, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+        # minimum of the mouse area, if largest area is below, it is not tracked
+        # minimum mouse area is adaptive to the mouse areas already logged in frames before, this greatly
+        # enhances tracking when mouse is behind wall or cue because in those cases the kalman filter takes over
         min_mouse_area = np.mean(self.largest_areas)/1.2
 
         largest_cnt, largest_area = None, 0
@@ -191,11 +190,18 @@ class Tracker:
             area = int(cv2.contourArea(cnt))
             if area > min_mouse_area:
                 sum_area += area
+
+                # Only uses the largest area if larger than the minimum mouse area
+                # (filters out other stuff being tracked)
                 if area > largest_area:
                     largest_area = area
                     largest_cnt = cnt
+
+                    # Only save the largest area if not larger than 2 times the current minimum mouse area
+                    # Prevents weird tracking from screwing up the minimum mouse area
+                    # (for example the experimenter being tracked)
                     if largest_area < 2*min_mouse_area:
-                        self.largest_areas.append(largest_area)
+                        self.largest_areas = np.append(self.largest_areas, largest_area)
 
         # Correct coordinates for search window location
         if largest_cnt is not None:
@@ -246,24 +252,27 @@ class Tracker:
 
         # Use LED position as earlier calculated using homography and stddev filtering to monitor its state (on or off)
         if self.n == 0:
-            self.led_frame = self.frame[int((self.LED_pos[1]-2)):int((self.LED_pos[1]+2)),
-                             int((self.LED_pos[0]-2)):int((self.LED_pos[0]+2)), 0]
+            self.led_frame = self.frame[int((self.LED_pos[1]-2)):
+                                        int((self.LED_pos[1]+2)), int((self.LED_pos[0]-2)):int((self.LED_pos[0]+2)), 0]
             self.led_state = np.mean(self.led_frame) > self.thresh_led_0
 
         if self.n == 1:
-            self.led_frame = self.frame[int((self.LED_pos[3]-2)):int((self.LED_pos[3]+2)),
-                             int((self.LED_pos[2]-2)):int((self.LED_pos[2]+2)), 0]
+            self.led_frame = self.frame[int((self.LED_pos[3]-2)):
+                                        int((self.LED_pos[3]+2)), int((self.LED_pos[2]-2)):int((self.LED_pos[2]+2)), 0]
             self.led_state = np.mean(self.led_frame) > self.thresh_led_1
 
+        # Logs LED state to be on if mean is larger than threshold
         if self.led_state:
             self.led_state = 1
         else:
             self.led_state = 0
 
+        # If no largest area is found, take the positions the kalman filter spits out
         if not cx and not cy and kfx and kfy:
             cx = kfx
             cy = kfy
 
+        # If the positions fall outside of the frame (due to kalman filter) ignore these
         if cx and cy:
             if cx <= 0 or cx >= 800 or cy <= 0 or cy >= 600:
                 cx = None

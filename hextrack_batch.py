@@ -23,10 +23,13 @@ from src.trial_analysis import TrialAnalysis
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
 ONLY_ANALYSIS = True
+
+# If True, mask is checked, handy to put on False for quick processing and mask does not matter much
 Mask_check = False
 
 
 def find_nearest(array, value):
+    """"Finds the nearest log file in time (only if timestamp before video timestamp) among all log files in a list"""
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     val = array[idx]
@@ -39,6 +42,7 @@ def find_nearest(array, value):
 # Grab frames and return captured frame
 class Grabber:
     def __init__(self, src):
+        """"Grabs new frames and passes them on"""
         self.src = src
         self.capture = cv2.VideoCapture(src)
 
@@ -51,6 +55,7 @@ class Grabber:
 class OfflineHextrack:
     def __init__(self, cfg, src, n, LED_pos, LED_thresholds, sources):
 
+        # Video frame sources (top and bottom)
         self.sources = sources
 
         self.cfg = cfg
@@ -77,15 +82,21 @@ class OfflineHextrack:
 
         logging.debug('HexTrack initialization done!')
 
+        # Video reader used to infer amount of frames
         self.vid = VideoFileClip(src)
         self.duration = self.vid.duration*15
         self.src = src
 
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
+        """"Loop through all frames in video and track mouse positions"""
+
+        # tqdm package used to monitor tracking progress
         pbar = tqdm(range(int(self.duration)))
-        # pbar = tqdm(range(3000))
+
         for i in pbar:
+
+            # Grab next frame, stops loop if no new frame is present (happens when all frames in video tracked)
             frame = self.grabber.next()
             if frame is None:
                 break
@@ -97,11 +108,13 @@ class OfflineHextrack:
                 self.tracker.apply(frame, self.frame_idx, mask_frame=self.made_mask, n=self.n, src=self.src)
 
             if Mask_check:
+
                 # At the second frame, show computer-generated mask
                 # If not sufficient, gives possibility to input user-generated mask
                 if self.frame_idx == 0:
-                    path = pkg_resources.resource_filename(__name__, "/data/raw/{}/Masks/mask_{}.png".format
-                    (self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
+                    path = pkg_resources.resource_filename(__name__, "/data/raw/{}/Masks/mask_{}.png"
+                                                           .format(self.sources[0][len(self.sources[0])-29:
+                                                                                   len(self.sources[0])-10], n))
                     mask = cv2.imread(path)
                     plt.figure('Mask check')
                     plt.imshow(mask)
@@ -113,24 +126,17 @@ class OfflineHextrack:
                         mask_path = pkg_resources.resource_filename(__name__, "/Input_mask/new_mask.png")
                         self.made_mask = cv2.imread(mask_path, 0)
                         self.mask_init = False
+
             self.frame_idx += 1
+
+        # Close down tracker position log file, tqdm progress bar and video reader
         self.tracker.close()
         pbar.close()
         self.vid.reader.close()
 
-    # Redundant, might be deleted later
-    def process_events(self, display=False):
-        if not display:
-            return
-
-        # Event loop call
-        key = cv2.waitKey(1)
-
-        # Process Keypress Events
-        if key == ord('q'):
-            self.stop()
-
     def stop(self):
+        """Closes the position log files for following steps to be used"""
+
         self.tracker.close()
         cv2.destroyAllWindows()
         raise SystemExit
@@ -164,13 +170,16 @@ if __name__ == '__main__':
     rootdir = cfg['video_map'][0]
     log = None
 
-    # Find videos in map and track them
+    # Find videos in map and tracks them
     for _, _, files in os.walk(rootdir):
         for file in files:
             if file.endswith("0.avi"):
                 logs = []
                 logs_time = []
                 path_0 = os.path.join(rootdir, file)
+
+                # Finds the path towards the top video source and bottom video source
+                # Note: if bottom video source 1 s late, failsafe in place
                 path_1 = path_0[:len(path_0) - 5] + "1.avi"
                 if not os.path.exists(path_1):
                     path_1 = path_0[:len(path_0)-11] + "{}_cam_1.avi".format(int(path_0[len(path_0)-11])+1)
@@ -183,7 +192,7 @@ if __name__ == '__main__':
                 sources = [path_0, path_1]
 
                 # Scans through files and finds correct log file within map for each video
-                # (also works for multiple log files present)
+                # (also works for multiple log files present, always finds log file closest before video time)
                 for file in files:
                     if file.endswith('log.xlsx'):
                         logs.append(file)
@@ -215,6 +224,7 @@ if __name__ == '__main__':
                 except ValueError:
                     print('Error:Log file is probably not present in designated folder')
 
+                # Save video paths and log path
                 paths = [path_0, path_1, log]
 
                 try:
@@ -226,28 +236,39 @@ if __name__ == '__main__':
                         print('Source {} @ {} starting'.format(n, src))
 
                         if not ONLY_ANALYSIS:
+                            # Calculate LED position and LED threshold
                             LED_pos = homography.LEDfind(sources=sources, iterations=200)
                             LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
+
+                            # Track mouse position for entire video
                             ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds,
                                                  sources=sources)
                             ht.loop()
 
                             logging.debug('Position files acquired')
 
+                    # Time alignment
                     tcorrect = TimeCorrect(__name__, sources=sources)
                     dat_0, dat_1 = tcorrect.correction()
+
+                    # Linearization
                     linearization = Linearization(__name__, dat_0, dat_1, sources=sources)
                     lin_path_0, lin_path_1 = linearization.lin()
+
+                    # Map to ground truth (relative position)
                     groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
                     gt_path_0, gt_path_1 = groundtruth.gt_mapping()
                     gt_path = groundtruth.gt_stitch()
 
+                    # Trial selection and cutout
                     trialcut = TrialCut(paths, [gt_path_0, gt_path_1, gt_path])
                     trialcut.log_data()
                     trialcut.cut(__name__)
                     trialcut.cut_stitch(__name__)
 
+                    # Trial analysis
                     TrialAnalysis(__name__, paths)
+
                 except cv2.error or OSError:
                     print('Error: Something is wrong with the video file; process is continued without analysis of'
                           ' this particular video')

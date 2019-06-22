@@ -57,6 +57,7 @@ class TimeCorrect:
 
     # Time alignment of the position log files
     def correction(self):
+        """"Time alignment based on on- and offsets of LED light"""
 
         # Takes the LED-states of both log files, where 1 is on and 0 is off
         led_0 = self.dat_0[:, 3]
@@ -121,6 +122,8 @@ class Linearization:
 
     # Linearization of the original paths of the log files on basis of the node positions
     def lin(self):
+        """"Linearization of the mouse position based on node positions"""
+
         n = 0
         path_0, path_1 = None, None
 
@@ -202,6 +205,8 @@ class GroundTruth:
         make_directory(pathname, "/data/interim/pos_log_files_stitched/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
 
     def gt_mapping(self):
+        """"Mapping of linearized mouse positions to a ground truth map based on relative position (for both
+         sources separately)"""
 
         n = 0
 
@@ -250,6 +255,8 @@ class GroundTruth:
         return self.path_0, self.path_1
 
     def gt_stitch(self):
+        """"Stitching together the ground truth positions of both sources to one set of positions"""
+
         path = pkg_resources.resource_filename(self.pathname,
                                                '/data/interim/pos_log_files_stitched/{}/pos_log_file_stitched.csv'.format(
                                                    self.sources[0][
@@ -310,9 +317,6 @@ class GroundTruth:
 
             pos_log_file.write("{}, {}, {}\n".format(frame_n, x, y))
 
-            node_first = np.nan
-            node_second = np.nan
-
         return path
 
 
@@ -325,6 +329,8 @@ class Homography:
 
         make_directory(self.pathname, "/data/raw/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
 
+        # Create a copy of the first frame and the automatically generated mask, for example to be used to create
+        #  a new hand-made mask if automatically generated mask is deemed insufficient
         for n, source in enumerate(self.sources):
             make_directory(self.pathname, "/data/raw/{}/frame_images".format(
                 sources[0][len(sources[0]) - 29:len(sources[0]) - 10], n))
@@ -339,13 +345,9 @@ class Homography:
             cap.release()
             cv2.destroyAllWindows()
 
-        path = pkg_resources.resource_filename(pathname, "/src/resources/aligned")
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed" % path)
+        make_directory(pathname, "/src/resources/aligned")
 
+        # Load in all node and LED boundary positions
         self.stand_0_path = pkg_resources.resource_filename(pathname, '/src/resources/default/stand_0.png')
         self.stand_1_path = pkg_resources.resource_filename(pathname, '/src/resources/default/stand_1.png')
 
@@ -370,6 +372,7 @@ class Homography:
         self.im_0 = cv2.imread(self.im_0_path, 0)
         self.im_1 = cv2.imread(self.im_1_path, 0)
 
+        # The minimum amount of matches for feature matching in order to continue
         self.MIN_MATCH_COUNT = 50
 
         # Initiate SIFT detector
@@ -385,7 +388,9 @@ class Homography:
         self.M_0, self.M_1 = None, None
         self.dst_0, self.dst_1 = None, None
         self.pts_0, self.pts_1 = None, None
-        self.LED_top, self.LED_bot =  None,  None
+        self.LED_top, self.LED_bot = None,  None
+
+        self.LED_pts_0, self.LED_dst_0 = None, None
 
         # Initiate position files for homography-corrected node and LED crop positions
         corr_top = pkg_resources.resource_filename(pathname, '/src/resources/aligned/corr_node_pos_top.csv')
@@ -401,14 +406,14 @@ class Homography:
         self.corr_LED_top.write('x, y\n')
         self.corr_LED_bot.write('x, y\n')
 
+        # Emtpy lists for multiple purposes
         self.stdvs1, self.stdvs2 = [], []
-
-        self.LED_pts_0, self.LED_dst_0 = None, None
-
         self.log_onsets, self.log_offsets = [], []
         self.LED_pts_0, self.LED_pts_1 = [], []
 
     def homography_calc(self):
+        """"Calculation of the homography matrices of the top and bottom video sources"""
+
         # find the key points and descriptors with SIFT
         kp1, des1 = self.sift.detectAndCompute(self.stand_0, None)
         kp2, des2 = self.sift.detectAndCompute(self.im_0, None)
@@ -483,11 +488,15 @@ class Homography:
         else:
             logging.debug('Error: Not enough matches found')
 
+        # Close the new position files for future usage in pipeline
         self.corr_bot.close()
         self.corr_LED_bot.close()
 
     # Finds the position of the LED light on basis of the Stddev of the first few frames of the video
     def LEDfind(self, sources, iterations=100):
+        """"Find the position of the LED light in both frames using the standard deviation of a
+        cut-out part of the frames of both sources"""
+
         self.LED_top = self.LED_dst_0
         self.LED_bot = self.LED_dst_1
 
@@ -564,6 +573,7 @@ class Homography:
         return [x1, y1, x2, y2]
 
     def LED_thresh(self, sources, iterations, LED_pos):
+        """"Find the thresholds of the LED light for on- and offsets in both video sources"""
 
         led_values_0 = []
         led_values_1 = []
@@ -604,6 +614,8 @@ class Homography:
 
 class TrialCut:
     def __init__(self, paths, data):
+
+        # Load in all data and the excel file containing the log data of the experiment
         self.path_vid_0 = paths[0]
         self.path_vid_1 = paths[1]
         self.log_path = paths[2]
@@ -618,9 +630,14 @@ class TrialCut:
         self.onsets, self.offsets = [], []
 
     def log_data(self):
+        """"Find the specific timings of the on- and offsets of trials in the time-aligned log files"""
+
+        # Standard video timing (to correct for the normal start of the video)
+        # Example: video timestamp = 14:00, onset time = 14:20 --> time in video = 00:20
         vid_t = (3600 * int(self.path_vid_0[len(self.path_vid_0)-18:len(self.path_vid_0)-16]) + 60 * int(self.path_vid_0[len(self.path_vid_0)-15:len(self.path_vid_0)-13]) + int(
             self.path_vid_0[len(self.path_vid_0)-12:len(self.path_vid_0)-10])) * 15
 
+        # Load in the on- and offsets of trials from the log file
         onsets = self.array[:, 2][:]
         offsets = self.array[:, 3][:]
 
@@ -630,6 +647,7 @@ class TrialCut:
         for i in range(len(onsets)):
             self.offsets.append(offsets[i][11:19])
 
+        # Find timstamps in log files
         for i in range(len(self.onsets)):
             on_t = (3600 * int(self.onsets[i][0:2]) + 60 * int(self.onsets[i][3:5]) + int(self.onsets[i][6:8])) * 15 - vid_t
             off_t = (3600 * int(self.offsets[i][0:2]) + 60 * int(self.offsets[i][3:5]) + int(self.offsets[i][6:8])) * 15 - vid_t
@@ -649,14 +667,17 @@ class TrialCut:
             self.log_offsets.append(off_tf)
 
     def cut(self, pathname):
+        """"Cut away the relevant data from the log file for each trial and save it in two separate files"""
+
         make_directory(pathname, "/data/processed/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
 
+        # Loop through all trials
         n = 1
         for i in range(len(self.log_onsets)):
 
             if not np.isnan(self.log_onsets[i]) and not np.isnan(self.log_offsets[i]):
-                # print(self.log_onsets[i], self.log_offsets[i])
 
+                # Make directories for saving data files of trials
                 make_directory(pathname, "/data/processed/{}/{}".format(
                     self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
 
@@ -683,14 +704,18 @@ class TrialCut:
                         n += 1
 
     def cut_stitch(self, pathname):
+        """"Cut away the relevant data from the log file for each trial and save it in one file"""
+
         make_directory(pathname, "/data/processed/{}".format(
             self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10]))
 
+        # Loop through all trials
         n = 1
         for i in range(len(self.log_onsets)):
 
             if not np.isnan(self.log_onsets[i]) and not np.isnan(self.log_offsets[i]):
 
+                # Make directories for saving data files of trials
                 make_directory(pathname, "/data/processed/{}/{}".format(
                     self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
 
