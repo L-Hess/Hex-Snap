@@ -5,24 +5,26 @@ import argparse
 import logging
 import pkg_resources
 from pathlib import Path
-import threading
+
 import os
 from tqdm import tqdm
 from moviepy.editor import VideoFileClip
 import numpy as np
 import glob
+from matplotlib import pyplot as plt
 
 from src.tracker import Tracker
-from src.preprocessing import timecorrect
+from src.preprocessing import TimeCorrect
 from src.preprocessing import Linearization
 from src.preprocessing import GroundTruth
 from src.preprocessing import Homography
 from src.preprocessing import TrialCut
-from src.trial_analysis import TrialDisplay
-from src.validation import Validate
+from src.trial_analysis import TrialAnalysis
 
 # If true, no tracking is performed, can only be used if pos_log_files are already available in the system
 ONLY_ANALYSIS = True
+Mask_check = False
+
 
 def find_nearest(array, value):
     array = np.asarray(array)
@@ -47,8 +49,9 @@ class Grabber:
 
 # Loops through frames, capturing them and applying tracking
 class OfflineHextrack:
-    def __init__(self, cfg, src, n, LED_pos, LED_thresholds):
-        threading.current_thread().name = 'HexTrack'
+    def __init__(self, cfg, src, n, LED_pos, LED_thresholds, sources):
+
+        self.sources = sources
 
         self.cfg = cfg
         self.frame_idx = 0
@@ -69,7 +72,8 @@ class OfflineHextrack:
 
         # Initiation of the Grabbers and Trackers and creation of csv log file
         self.grabber = Grabber(src)
-        self.tracker = Tracker(cfg, pos_log_file=open(self.path, 'w'), name=__name__, LED_pos=LED_pos, LED_thresholds=LED_thresholds)
+        self.tracker = Tracker(cfg, pos_log_file=open(self.path, 'w'), name=__name__, LED_pos=LED_pos,
+                               LED_thresholds=LED_thresholds)
 
         logging.debug('HexTrack initialization done!')
 
@@ -79,8 +83,8 @@ class OfflineHextrack:
 
     # Loops through grabbing and tracking each frame of the video file
     def loop(self):
-        # pbar = tqdm(range(int(self.duration)))
-        pbar = tqdm(range(1))
+        pbar = tqdm(range(int(self.duration)))
+        # pbar = tqdm(range(3000))
         for i in pbar:
             frame = self.grabber.next()
             if frame is None:
@@ -92,19 +96,23 @@ class OfflineHextrack:
             elif not self.mask_init:
                 self.tracker.apply(frame, self.frame_idx, mask_frame=self.made_mask, n=self.n, src=self.src)
 
-            # At the second frame, show computer-generated mask
-            # If not sufficient, gives possibility to input user-generated mask
-            # if self.frame_idx == 1:
-            #     path = pkg_resources.resource_filename(__name__, '/output/Masks/mask_{}.png'.format(n))
-            #     mask = cv2.imread(path)
-            #     plt.figure('Mask check')
-            #     plt.imshow(mask)
-            #     plt.show()
-            #     mask_check = input("If the mask is sufficient, enter y: ")
-            #     if mask_check != 'y':
-            #         input('Please upload custom mask under the name new_mask.png to the output folder and press enter')
-            #         self.made_mask = cv2.imread('new_mask.png', 0)
-            #         self.mask_init = False
+            if Mask_check:
+                # At the second frame, show computer-generated mask
+                # If not sufficient, gives possibility to input user-generated mask
+                if self.frame_idx == 0:
+                    path = pkg_resources.resource_filename(__name__, "/data/raw/{}/Masks/mask_{}.png".format
+                    (self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
+                    mask = cv2.imread(path)
+                    plt.figure('Mask check')
+                    plt.imshow(mask)
+                    plt.show()
+                    mask_check = input("If the mask is sufficient, enter y: ")
+                    if mask_check != 'y':
+                        input('Please upload custom mask under the name new_mask.png to the output folder'
+                              ' and press enter')
+                        mask_path = pkg_resources.resource_filename(__name__, "/Input_mask/new_mask.png")
+                        self.made_mask = cv2.imread(mask_path, 0)
+                        self.mask_init = False
             self.frame_idx += 1
         self.tracker.close()
         pbar.close()
@@ -163,66 +171,83 @@ if __name__ == '__main__':
                 logs = []
                 logs_time = []
                 path_0 = os.path.join(rootdir, file)
-                path_1 = path_0[:len(path_0)-5]+"1.avi"
-                time = 31536000 * int(path_0[len(path_0)-29:len(path_0)-25])+ 2592000*int(path_0[len(path_0)-24:len(path_0)-22]) + 86400*int(path_0[len(path_0)-21:len(path_0)-19])+ 3600*int(path_0[len(path_0)-18:len(path_0)-16]) + 60*int(path_0[len(path_0)-15:len(path_0)-13]) + int(path_0[len(path_0)-12:len(path_0)-10])
+                path_1 = path_0[:len(path_0) - 5] + "1.avi"
+                if not os.path.exists(path_1):
+                    path_1 = path_0[:len(path_0)-11] + "{}_cam_1.avi".format(int(path_0[len(path_0)-11])+1)
+                time = 31536000 * int(path_0[len(path_0) - 29:len(path_0) - 25]) + 2592000 * \
+                       int(path_0[len(path_0) - 24:len(path_0) - 22]) + 86400 * int(
+                    path_0[len(path_0) - 21:len(path_0) - 19]) + \
+                       3600 * int(path_0[len(path_0) - 18:len(path_0) - 16]) + 60 * int(
+                    path_0[len(path_0) - 15:len(path_0) - 13]) \
+                       + int(path_0[len(path_0) - 12:len(path_0) - 10])
                 sources = [path_0, path_1]
 
                 # Scans through files and finds correct log file within map for each video
                 # (also works for multiple log files present)
                 for file in files:
-                    if file.endswith('log'):
+                    if file.endswith('log.xlsx'):
                         logs.append(file)
-                        logs_time.append(31536000 * int(file[0:4])+ 2592000*int(file[5:7]) + 86400*int(file[8:10])+3600*int(file[11:13])+60*int(file[14:16])+int(file[17:19]))
+                        try:
+                            logs_time.append(
+                                31536000 * int(file[0:4]) + 2592000 * int(file[5:7]) + 86400 * int(file[8:10]) + 3600
+                                * int(file[11:13]) + 60 * int(file[14:16]) + int(file[17:19]))
+                        except ValueError:
+                            print('Error: This file was read in: {}, if starts with ~$, this is a temporary file,'
+                                  ' close the excel file next time before starting the pipeline.\n'
+                                  ' Analysis will proceed as normal.'.format(file))
 
                 try:
                     log_time = find_nearest(logs_time, time)
                     log_time_y = int(np.floor(log_time / 31536000))
                     log_time_month = int(np.floor((log_time - log_time_y * 31536000) / 2592000))
                     log_time_d = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000) / 86400))
-                    log_time_h = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400)/ 3600))
-                    log_time_m = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400 - log_time_h * 3600) / 60))
-                    log_time_s = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d * 86400 - log_time_h * 3600 - log_time_m * 60)))
-
+                    log_time_h = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d
+                                               * 86400) / 3600))
+                    log_time_m = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d
+                                               * 86400 - log_time_h * 3600) / 60))
+                    log_time_s = int(np.floor((log_time - log_time_y * 31536000 - log_time_month * 2592000 - log_time_d
+                                               * 86400 - log_time_h * 3600 - log_time_m * 60)))
                     for name in glob.glob(
-                            '{}/*{}*_*{}*-*{}*-{}*log'.format(rootdir, path_0[len(path_0) - 29:len(path_0) - 19],
-                                                         format(log_time_h, '02d'), format(log_time_m, '02d'),
-                                                         format(log_time_s, '02d'))):
-
+                            '{}/{}_{}*{}*{}*log.xlsx'.format(rootdir, path_0[len(path_0) - 29:len(path_0) - 19],
+                                                             format(log_time_h, '02d'), format(log_time_m, '02d'),
+                                                             format(log_time_s, '02d'))):
                         log = name
                 except ValueError:
                     print('Error:Log file is probably not present in designated folder')
 
                 paths = [path_0, path_1, log]
 
-                # Initiate calculation of the homography matrix, directly corrects all node and LED positions
-                homography = Homography(__name__, sources=sources)
-                homography.homography_calc()
-                # Initiates OfflineHextrack to track mouse positions and save position log files
-                for n, src in enumerate(sources):
-                    print('Source {} @ {} starting'.format(n, src))
+                try:
+                    # Initiate calculation of the homography matrix, directly corrects all node and LED positions
+                    homography = Homography(__name__, sources=sources)
+                    homography.homography_calc()
+                    # Initiates OfflineHextrack to track mouse positions and save position log files
+                    for n, src in enumerate(sources):
+                        print('Source {} @ {} starting'.format(n, src))
 
-                    if not ONLY_ANALYSIS:
-                        LED_pos = homography.LEDfind(sources=sources, iterations=200)
-                        LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
-                        ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds)
-                        ht.loop()
+                        if not ONLY_ANALYSIS:
+                            LED_pos = homography.LEDfind(sources=sources, iterations=200)
+                            LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
+                            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds,
+                                                 sources=sources)
+                            ht.loop()
 
-                        logging.debug('Position files acquired')
+                            logging.debug('Position files acquired')
 
-                tcorrect = timecorrect(__name__, sources=sources)
-                tcorrect.correction()
-                linearization = Linearization(__name__, sources=sources)
-                lin_path_0, lin_path_1 = linearization.lin()
-                groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
-                gt_path_0, gt_path_1 = groundtruth.gt_mapping()
+                    tcorrect = TimeCorrect(__name__, sources=sources)
+                    dat_0, dat_1 = tcorrect.correction()
+                    linearization = Linearization(__name__, dat_0, dat_1, sources=sources)
+                    lin_path_0, lin_path_1 = linearization.lin()
+                    groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
+                    gt_path_0, gt_path_1 = groundtruth.gt_mapping()
+                    gt_path = groundtruth.gt_stitch()
 
-                trialcut = TrialCut(paths, [gt_path_0, gt_path_1])
-                trialcut.log_data()
-                trialcut.cut(__name__)
+                    trialcut = TrialCut(paths, [gt_path_0, gt_path_1, gt_path])
+                    trialcut.log_data()
+                    trialcut.cut(__name__)
+                    trialcut.cut_stitch(__name__)
 
-                TrialDisplay(__name__, paths)
-
-                # # Validation
-                # validate = Validate(path_0, path_1)
-                # validate.time_alignment_check()
-                # validate.gt_distance_check()
+                    TrialAnalysis(__name__, paths)
+                except cv2.error or OSError:
+                    print('Error: Something is wrong with the video file; process is continued without analysis of'
+                          ' this particular video')
