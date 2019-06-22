@@ -406,9 +406,15 @@ class TrialAnalysis:
     def data_log(self, path):
         df = pd.read_excel(self.log_path)
         savepath = os.path.join(path, 'trial_data_{}.xlsx'.format(path[len(path)-19:]))
+        start_time = 3600*int(path[len(path)-8:len(path)-6]) + 60*int(path[len(path)-5:len(path)-3]) + int(path[len(path)-2:])
+        trial_starts = df['timestamp_start_trial'].astype('str')
+        trial_starts = np.array([3600*int(x[11:13]) + 60*int(x[14:16]) + int(x[17:19]) - start_time for x in trial_starts])
 
+        stamps = np.nonzero(trial_starts > 0)
+
+        n = stamps[0][0]
+        df.drop(df.head(n).index, inplace=True)
         rows, _ = df.shape
-
         n = rows-len(self.paths)
         df.drop(df.tail(n).index, inplace=True)
 
@@ -416,10 +422,8 @@ class TrialAnalysis:
         df['Tracked path correct?'] = self.correct_path
         df['path length'] = self.path_lengths
         df['shortest_path_length'] = self.shortest_path_lengths
-        df['average velocity (distance/frame)'] = self.velocities
+        df['average velocity (pixels/frame)'] = self.velocities
         # df['dwell times'] = self.dwell_data
-
-        df.sort_values('n', axis=0, ascending=True, inplace=False, kind='quicksort', na_position='last')
 
         writer = pd.ExcelWriter(savepath, engine='xlsxwriter')
         df.to_excel(writer, sheet_name='Sheet1')

@@ -14,7 +14,7 @@ import glob
 from matplotlib import pyplot as plt
 
 from src.tracker import Tracker
-from src.preprocessing import timecorrect
+from src.preprocessing import TimeCorrect
 from src.preprocessing import Linearization
 from src.preprocessing import GroundTruth
 from src.preprocessing import Homography
@@ -217,34 +217,34 @@ if __name__ == '__main__':
                 paths = [path_0, path_1, log]
 
                 try:
-                    # # Initiate calculation of the homography matrix, directly corrects all node and LED positions
-                    # homography = Homography(__name__, sources=sources)
-                    # homography.homography_calc()
-                    # # Initiates OfflineHextrack to track mouse positions and save position log files
-                    # for n, src in enumerate(sources):
-                    #     print('Source {} @ {} starting'.format(n, src))
-                    #
-                    #     if not ONLY_ANALYSIS:
-                    #         LED_pos = homography.LEDfind(sources=sources, iterations=200)
-                    #         LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
-                    #         ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds,
-                    #                              sources=sources)
-                    #         ht.loop()
-                    #
-                    #         logging.debug('Position files acquired')
-                    #
-                    # tcorrect = timecorrect(__name__, sources=sources)
-                    # dat_0, dat_1 = tcorrect.correction()
-                    # linearization = Linearization(__name__, dat_0, dat_1, sources=sources)
-                    # lin_path_0, lin_path_1 = linearization.lin()
-                    # groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
-                    # gt_path_0, gt_path_1 = groundtruth.gt_mapping()
-                    # gt_path = groundtruth.gt_stitch()
-                    # #
-                    # trialcut = TrialCut(paths, [gt_path_0, gt_path_1, gt_path])
-                    # trialcut.log_data()
-                    # trialcut.cut(__name__)
-                    # trialcut.cut_stitch(__name__)
+                    # Initiate calculation of the homography matrix, directly corrects all node and LED positions
+                    homography = Homography(__name__, sources=sources)
+                    homography.homography_calc()
+                    # Initiates OfflineHextrack to track mouse positions and save position log files
+                    for n, src in enumerate(sources):
+                        print('Source {} @ {} starting'.format(n, src))
+
+                        if not ONLY_ANALYSIS:
+                            LED_pos = homography.LEDfind(sources=sources, iterations=200)
+                            LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
+                            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds,
+                                                 sources=sources)
+                            ht.loop()
+
+                            logging.debug('Position files acquired')
+
+                    tcorrect = TimeCorrect(__name__, sources=sources)
+                    dat_0, dat_1 = tcorrect.correction()
+                    linearization = Linearization(__name__, dat_0, dat_1, sources=sources)
+                    lin_path_0, lin_path_1 = linearization.lin()
+                    groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
+                    gt_path_0, gt_path_1 = groundtruth.gt_mapping()
+                    gt_path = groundtruth.gt_stitch()
+
+                    trialcut = TrialCut(paths, [gt_path_0, gt_path_1, gt_path])
+                    trialcut.log_data()
+                    trialcut.cut(__name__)
+                    trialcut.cut_stitch(__name__)
 
                     TrialAnalysis(__name__, paths)
                 except cv2.error or OSError:

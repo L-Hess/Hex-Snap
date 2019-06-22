@@ -14,6 +14,15 @@ def distance(x1, y1, x2, y2):
     return r
 
 
+def make_directory(pathname, path_str):
+    path = pkg_resources.resource_filename(pathname, path_str)
+    if not os.path.exists(path):
+        try:
+            os.mkdir(path)
+        except OSError:
+            print("Creation of the directory %s failed" % path)
+
+
 # Obtaining the linearized position using simple algebra
 # Maps mouse position to the closest point on the line between the two closest nodes as seen from mouse position
 def lin_pos(x1, y1, x2, y2, x3, y3, z):
@@ -33,7 +42,7 @@ def lin_pos(x1, y1, x2, y2, x3, y3, z):
 
 
 # For time alignment of both videos on basis of the LED light flickering
-class timecorrect:
+class TimeCorrect:
     def __init__(self, pathname, sources):
 
         # Loading in the position log files as created by the tracker
@@ -42,20 +51,6 @@ class timecorrect:
 
         self.dat_0 = np.genfromtxt(self.data_path_1, delimiter=',', skip_header=False)
         self.dat_1 = np.genfromtxt(self.data_path_2, delimiter=',', skip_header=False)
-
-        # Initiation of new time aligned position log files
-        # Create path to csv log file for tracking mouse position and LED-light state
-        path = pkg_resources.resource_filename(pathname, "/data/interim/time_corrected_position_log_files/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed" % path)
-
-        self.path_0 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/'
-                                                           'pos_log_file_tcorr_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        self.path_1 = pkg_resources.resource_filename(pathname, '/data/interim/time_corrected_position_log_files/{}/'
-                                                           'pos_log_file_tcorr_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
 
         self.dat_0f = None
         self.dat_1f = None
@@ -104,7 +99,6 @@ class timecorrect:
         return self.dat_0f, self.dat_1f
 
 
-
 class Linearization:
     def __init__(self, pathname, dat_0, dat_1, sources):
 
@@ -114,12 +108,7 @@ class Linearization:
         self.dat_0 = dat_0
         self.dat_1 = dat_1
 
-        path = pkg_resources.resource_filename(pathname, "/data/interim/linearized_position_log_files/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed" % path)
+        make_directory(pathname, "/data/interim/linearized_position_log_files/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
 
         self.nodes_top_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_node_pos_top.csv')
         self.nodes_bot_path = pkg_resources.resource_filename(pathname, '/src/Resources/aligned/corr_node_pos_bot.csv')
@@ -208,26 +197,9 @@ class GroundTruth:
         self.sources = sources
         self.pathname = pathname
 
-        path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_gt")
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed" % path)
-
-        path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_gt/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed" % path)
-
-        path = pkg_resources.resource_filename(pathname, "/data/interim/pos_log_files_stitched/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed" % path)
+        make_directory(pathname, "/data/interim/pos_log_files_gt")
+        make_directory(pathname, "/data/interim/pos_log_files_gt/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
+        make_directory(pathname, "/data/interim/pos_log_files_stitched/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
 
     def gt_mapping(self):
 
@@ -351,29 +323,13 @@ class Homography:
 
         self.pathname = pathname
 
-        path = pkg_resources.resource_filename(self.pathname, "/data/raw/{}".format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10]))
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed, this path probably already exists" % path)
+        make_directory(self.pathname, "/data/raw/{}".format(sources[0][len(sources[0])-29:len(sources[0])-10]))
 
         for n, source in enumerate(self.sources):
-            path = pkg_resources.resource_filename(self.pathname, "/data/raw/{}/frame_images".format(
+            make_directory(self.pathname, "/data/raw/{}/frame_images".format(
                 sources[0][len(sources[0]) - 29:len(sources[0]) - 10], n))
-            if not os.path.exists(path):
-                try:
-                    os.mkdir(path)
-                except OSError:
-                    print("Creation of the directory %s failed, this path probably already exists" % path)
-
-            path = pkg_resources.resource_filename(self.pathname, "/data/raw/{}/masks".format(
-                sources[0][len(sources[0]) - 29:len(sources[0]) - 10], n))
-            if not os.path.exists(path):
-                try:
-                    os.mkdir(path)
-                except OSError:
-                    print("Creation of the directory %s failed, this path probably already exists" % path)
+            make_directory(self.pathname, "/data/raw/{}/masks".format(
+                sources[0][len(sources[0]) - 29:len(sources[0]) - 10]))
 
             cap = cv2.VideoCapture(source)
             cap.set(1, 1)
@@ -618,7 +574,7 @@ class Homography:
 
         i = 0
         # Calculate the value of all pixels in the cropped video files and save them in the initiated matrices
-        while i < iterations-1:
+        while i < iterations:
             _, frame_0 = cap_0.read()
             _, frame_1 = cap_1.read()
 
@@ -694,12 +650,7 @@ class TrialCut:
             self.log_offsets.append(off_tf)
 
     def cut(self, pathname):
-        path = pkg_resources.resource_filename(pathname, "/data/processed/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed" % path)
+        make_directory(pathname, "/data/processed/{}".format(self.path_vid_0[len(self.path_vid_0)-29:len(self.path_vid_0)-10]))
 
         n = 1
         for i in range(len(self.log_onsets)):
@@ -707,21 +658,14 @@ class TrialCut:
             if not np.isnan(self.log_onsets[i]) and not np.isnan(self.log_offsets[i]):
                 # print(self.log_onsets[i], self.log_offsets[i])
 
-                path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}".format(
+                make_directory(pathname, "/data/processed/{}/{}".format(
                     self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
-                if not os.path.exists(path):
-                    try:
-                        os.mkdir(path)
-                    except OSError:
-                        print("Creation of the directory %s failed" % path)
+
+                make_directory(pathname, "/data/processed/{}/{}/position_log_files".format(
+                    self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
 
                 path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}/position_log_files".format(
                     self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
-                if not os.path.exists(path):
-                    try:
-                        os.mkdir(path)
-                    except OSError:
-                        print("Creation of the directory %s failed" % path)
 
                 if os.path.exists(path):
                     self.path_0 = path + '/pos_log_file_0.csv'
@@ -740,34 +684,22 @@ class TrialCut:
                         n += 1
 
     def cut_stitch(self, pathname):
-        path = pkg_resources.resource_filename(pathname, "/data/processed/{}".format(
+        make_directory(pathname, "/data/processed/{}".format(
             self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10]))
-        if not os.path.exists(path):
-            try:
-                os.mkdir(path)
-            except OSError:
-                print("Creation of the directory %s failed" % path)
 
         n = 1
         for i in range(len(self.log_onsets)):
 
             if not np.isnan(self.log_onsets[i]) and not np.isnan(self.log_offsets[i]):
 
-                path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}".format(
+                make_directory(pathname, "/data/processed/{}/{}".format(
                     self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
-                if not os.path.exists(path):
-                    try:
-                        os.mkdir(path)
-                    except OSError:
-                        print("Creation of the directory %s failed" % path)
+
+                make_directory(pathname, "/data/processed/{}/{}/position_log_files".format(
+                    self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
 
                 path = pkg_resources.resource_filename(pathname, "/data/processed/{}/{}/position_log_files".format(
                     self.path_vid_0[len(self.path_vid_0) - 29:len(self.path_vid_0) - 10], "trial_{}".format(n)))
-                if not os.path.exists(path):
-                    try:
-                        os.mkdir(path)
-                    except OSError:
-                        print("Creation of the directory %s failed" % path)
 
                 if os.path.exists(path):
                     self.path = path + '/pos_log_file.csv'
