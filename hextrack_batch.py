@@ -172,6 +172,8 @@ if __name__ == '__main__':
                 logs_time = []
                 path_0 = os.path.join(rootdir, file)
                 path_1 = path_0[:len(path_0) - 5] + "1.avi"
+                if not os.path.exists(path_1):
+                    path_1 = path_0[:len(path_0)-11] + "{}_cam_1.avi".format(int(path_0[len(path_0)-11])+1)
                 time = 31536000 * int(path_0[len(path_0) - 29:len(path_0) - 25]) + 2592000 * \
                        int(path_0[len(path_0) - 24:len(path_0) - 22]) + 86400 * int(
                     path_0[len(path_0) - 21:len(path_0) - 19]) + \

@@ -615,6 +615,7 @@ class TrialCut:
         self.array = self.df.values
 
         self.log_onsets, self.log_offsets = [], []
+        self.onsets, self.offsets = [], []
 
     def log_data(self):
         vid_t = (3600 * int(self.path_vid_0[len(self.path_vid_0)-18:len(self.path_vid_0)-16]) + 60 * int(self.path_vid_0[len(self.path_vid_0)-15:len(self.path_vid_0)-13]) + int(
@@ -623,11 +624,9 @@ class TrialCut:
         onsets = self.array[:, 2][:]
         offsets = self.array[:, 3][:]
 
-        self.onsets = []
         for i in range(len(onsets)):
             self.onsets.append(onsets[i][11:19])
 
-        self.offsets = []
         for i in range(len(onsets)):
             self.offsets.append(offsets[i][11:19])
 
