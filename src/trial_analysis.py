@@ -499,7 +499,7 @@ class TrialAnalysis:
         df_dwell = pd.DataFrame()
         df_dwell['Trial'] = np.arange(0, len(self.df['tracked_path']), 1)
         for i in range(24):
-            df_dwell['Node {}'.format(i+1)] = self.dwell_data[:, i]
+            df_dwell['Node {} (s)'.format(i+1)] = self.dwell_data[:, i]
 
         writer = pd.ExcelWriter(savepath, engine='xlsxwriter')
         self.df.to_excel(writer, sheet_name='Analysis')
