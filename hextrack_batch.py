@@ -228,43 +228,43 @@ if __name__ == '__main__':
                 paths = [path_0, path_1, log]
 
                 try:
-                    # Initiate calculation of the homography matrix, directly corrects all node and LED positions
-                    homography = Homography(__name__, sources=sources)
-                    homography.homography_calc()
-                    # Initiates OfflineHextrack to track mouse positions and save position log files
-                    for n, src in enumerate(sources):
-                        print('Source {} @ {} starting'.format(n, src))
-
-                        if not ONLY_ANALYSIS:
-                            # Calculate LED position and LED threshold
-                            LED_pos = homography.LEDfind(sources=sources, iterations=200)
-                            LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
-
-                            # Track mouse position for entire video
-                            ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds,
-                                                 sources=sources)
-                            ht.loop()
-
-                            logging.debug('Position files acquired')
-
-                    # Time alignment
-                    tcorrect = TimeCorrect(__name__, sources=sources)
-                    dat_0, dat_1 = tcorrect.correction()
-
-                    # Linearization
-                    linearization = Linearization(__name__, dat_0, dat_1, sources=sources)
-                    lin_path_0, lin_path_1 = linearization.lin()
-
-                    # Map to ground truth (relative position)
-                    groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
-                    gt_path_0, gt_path_1 = groundtruth.gt_mapping()
-                    gt_path = groundtruth.gt_stitch()
-
-                    # Trial selection and cutout
-                    trialcut = TrialCut(paths, [gt_path_0, gt_path_1, gt_path])
-                    trialcut.log_data()
-                    trialcut.cut(__name__)
-                    trialcut.cut_stitch(__name__)
+                    # # Initiate calculation of the homography matrix, directly corrects all node and LED positions
+                    # homography = Homography(__name__, sources=sources)
+                    # homography.homography_calc()
+                    # # Initiates OfflineHextrack to track mouse positions and save position log files
+                    # for n, src in enumerate(sources):
+                    #     print('Source {} @ {} starting'.format(n, src))
+                    #
+                    #     if not ONLY_ANALYSIS:
+                    #         # Calculate LED position and LED threshold
+                    #         LED_pos = homography.LEDfind(sources=sources, iterations=200)
+                    #         LED_thresholds = homography.LED_thresh(sources=sources, iterations=50, LED_pos=LED_pos)
+                    #
+                    #         # Track mouse position for entire video
+                    #         ht = OfflineHextrack(cfg=cfg, src=src, n=n, LED_pos=LED_pos, LED_thresholds=LED_thresholds,
+                    #                              sources=sources)
+                    #         ht.loop()
+                    #
+                    #         logging.debug('Position files acquired')
+                    #
+                    # # Time alignment
+                    # tcorrect = TimeCorrect(__name__, sources=sources)
+                    # dat_0, dat_1 = tcorrect.correction()
+                    #
+                    # # Linearization
+                    # linearization = Linearization(__name__, dat_0, dat_1, sources=sources)
+                    # lin_path_0, lin_path_1 = linearization.lin()
+                    #
+                    # # Map to ground truth (relative position)
+                    # groundtruth = GroundTruth(__name__, lin_path_0, lin_path_1, sources=sources)
+                    # gt_path_0, gt_path_1 = groundtruth.gt_mapping()
+                    # gt_path = groundtruth.gt_stitch()
+                    #
+                    # # Trial selection and cutout
+                    # trialcut = TrialCut(paths, [gt_path_0, gt_path_1, gt_path])
+                    # trialcut.log_data()
+                    # trialcut.cut(__name__)
+                    # trialcut.cut_stitch(__name__)
 
                     # Trial analysis
                     TrialAnalysis(__name__, paths)
