@@ -371,20 +371,27 @@ class TrialAnalysis:
         """Calculate the path taken (tracked), path length, shortest path length and gives the path as filed
          by the experimenter together with if this is in correspondence with the tracked path of a trial"""
 
-        closest_nodes = []
+        start = self.df['start_location'].iloc[int(n)]
+        goal = self.df['goal_location'].iloc[int(n)]
+        gt_path = self.df['Path'].iloc[int(n)].split(',')
 
-        for _, x, y in self.data:
+        closest_nodes = [int(start)]
+
+        for _, x, y, _ in self.data:
 
             # Calculate the distance of each mouse position to all nodes
-            dist = distance(x, y, self.ref_nodes[:, 0],self.ref_nodes[:, 1])
+            dist = distance(x, y, self.ref_nodes[:, 0], self.ref_nodes[:, 1])
 
             # Finds the closest node and saves its position and node number
             dist1, closest_node = np.min(dist), self.ref_nodes[np.argmin(dist), 2]
             if np.isnan(dist1):
-                closest_node = np.nan
-                closest_nodes.append(str(closest_node))
-            else:
-                closest_nodes.append(str(int(closest_node)))
+                pass
+            elif dist1 < 100:
+                if closest_nodes == [int(start)] and int(closest_node) == int(goal):
+                    pass
+                else:
+                    # print(closest_node, start)
+                    closest_nodes.append(str(int(closest_node)))
 
         closest_nodes = [x for x in closest_nodes if str(x) != 'nan']
 
@@ -406,10 +413,7 @@ class TrialAnalysis:
         mg = nx.Graph(flower_graph)
         nx.spring_layout(mg, pos=node_positions)
 
-        start = self.df['start_location'].iloc[int(n)]
-        goal = self.df['goal_location'].iloc[int(n)]
-
-        path_length = len(path_log)
+        path_length = len(gt_path)
         shortest_path_length = len(nx.shortest_path(mg, start, goal))
 
         df = pd.read_excel(self.log_path)
@@ -428,7 +432,7 @@ class TrialAnalysis:
 
         closest_nodes = []
 
-        for _, x, y in self.data:
+        for _, x, y, _ in self.data:
 
             # Calculate the distance of each mouse position to all nodes
             dist = distance(x, y, self.ref_nodes[:, 0],self.ref_nodes[:, 1])
@@ -469,7 +473,7 @@ class TrialAnalysis:
             x, y = self.data[i, 1], self.data[i, 2]
             x_prev, y_prev = self.data[i-1, 1], self.data[i-1, 2]
 
-            if x and y and x_prev and y_prev:
+            if not np.isnan(x) and not np.isnan(y) and not np.isnan(x_prev) and not np.isnan(y_prev):
                 d = distance(x, y, x_prev, y_prev)
                 velocity = d
 
