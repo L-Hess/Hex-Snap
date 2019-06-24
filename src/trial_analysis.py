@@ -69,6 +69,9 @@ class TrialAnalysis:
         self.correct_path = []
         self.number = []
 
+        self.data = None
+        self.fps = None
+
         # Load in the reference node positions of the ground truth map
         self.ref_nodes_path = pkg_resources.resource_filename(pathname, '/src/Resources/default/ref_nodes.csv')
         self.ref_nodes = np.genfromtxt(self.ref_nodes_path, delimiter=',', skip_header=True)
@@ -164,8 +167,8 @@ class TrialAnalysis:
                         self.dwell_data = np.vstack((self.dwell_data, counts))
 
                     # TrialAnalysis.make_html_tracking(self, savepath, time_diff, dist_diff, max_dist, mean_dist, n)
-                    # TrialAnalysis.make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log,
-                    #                                  path_length, shortest_path_length, dwell_data, velocities)
+                    TrialAnalysis.make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log,
+                                                     path_length, shortest_path_length, counts, array, velocities)
 
                     dir_count += 1
 
@@ -279,7 +282,7 @@ class TrialAnalysis:
             rf.write(report)
 
     def make_html_analysis(self, savepath, flower_graph, node_positions, n, path_log, path_length,
-                           shortest_path_length, dwell_data, velocities):
+                           shortest_path_length, dwell_data, dwell_array, velocities):
         """Create a HTML file containing the relevant analysis information of a trial"""
 
         report = ''
@@ -287,40 +290,40 @@ class TrialAnalysis:
             rf.write(report)
             report = ''
 
-        report += '<B> Trial {} <B>'.format(n) + '<br>'
+        report += '<B> Trial {} <B>'. format(n)
+        report += '<br>'
 
+        fig_1, ax = plt.subplots(1,1, figsize=(5, 5))
+        # Create the graph of the ground truth map, together with the logged positions
         mg = nx.Graph(flower_graph)
-        fig_1 = nx.draw_networkx(mg, pos=node_positions, nodecolor='r', edge_color='b', alpha=1, font_size=10)
+        nx.draw_networkx(mg, pos=node_positions, nodecolor='r', edge_color='b', alpha=1, font_size=10)
+        plt.scatter(self.data[:, 1], self.data[:, 2], color='red')
+        plt.title('Ground truth path')
 
-        plt.scatter(self.data[:, 1], self.data[:, 2], color='blue')
-
-        report += '<B> Ground truth <B>' + '<br>'
-        report += fig2html(fig_1) + '<br>'
-        report += '<br>'
-        report += '<i> Path taken: {} <i>'.format(path_log) + '<br>'
-        report += '<i> Path length: {} <i>'.format(path_length) + '<br>'
-        report += '<i> Shortest possible path length: {} <i>'.format(shortest_path_length) + '<br>'
+        report += fig2html(fig_1)
         report += '<br>'
 
         plt.clf()
 
-        fig_2 = plt.plot(velocities)
+        # Create a matplotlib subplots object to save velocity and dwell time plots in
+        fig, ax = plt.subplots(1, 2, figsize=(15, 5))
 
-        report += '<B> Velocities <B>' + '<br>'
-        report += fig2html(fig_2) + '<br>'
+        # Create the velocity plot
+        ax[0].plot(velocities)
+        ax[0].set_title('Velocity plot')
+        ax[0].set_xlabel('Frame number')
+        ax[0].set_ylabel('Velocity (m/s)')
+
+        # Create the dwell time plot
+        ax[1].bar(dwell_array, dwell_data)
+        ax[1].set_xticks(dwell_array)
+        ax[1].set_xlabel('Node')
+        ax[1].set_ylabel('Dwell time (s)')
+
+        report += fig2html(fig)
         report += '<br>'
 
         plt.clf()
-
-        report += '<B> Dwell times (frames) <B>' + '<br>'
-
-        nodes = dwell_data[0]
-        times = dwell_data[1]
-
-        for i in range(len(nodes)):
-            report += '<br>'
-            report += 'Node: {}, Dwell time: {} frames'.format(nodes[i], times[i]) + '<br>'
-            report += '<br>'
 
         with open('{}/ANALYSIS_REPORT.html'.format(savepath), 'w') as rf:
             rf.write(report)
@@ -458,6 +461,7 @@ class TrialAnalysis:
         """Calculates the velocities for each frame (in m/s) of a trial"""
 
         velocity_average = None
+        velocities_log = []
         velocities = []
 
         for i in range(1, len(self.data)):
@@ -467,16 +471,19 @@ class TrialAnalysis:
 
             if x and y and x_prev and y_prev:
                 d = distance(x, y, x_prev, y_prev)
+                velocity = d
 
-                velocities.append(d)
+                if self.fps:
+                    velocity = d*self.fps/1000
+
+                velocities.append(velocity)
+                velocities_log.append(velocity)
 
             else:
-                velocities.append(np.nan)
+                velocities_log.append(0)
 
-        if self.fps:
-            velocity_average = np.mean(velocities) * self.fps / 1000
-
-        velocities = smooth(velocities)
+        velocity_average = np.mean(velocities)
+        velocities = smooth(velocities_log)
 
         return velocities, velocity_average
 
