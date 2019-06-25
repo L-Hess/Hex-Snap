@@ -36,7 +36,7 @@ def fig2html(fig):
 def smooth(array):
     """Smoothing of an array"""
 
-    n = int(len(array)/10)
+    n = int(len(array) / 5)
 
     for k in range(n):
         new_array = np.zeros_like(array)
@@ -297,7 +297,7 @@ class TrialAnalysis:
         # Create the graph of the ground truth map, together with the logged positions
         mg = nx.Graph(flower_graph)
         nx.draw_networkx(mg, pos=node_positions, nodecolor='r', edge_color='b', alpha=1, font_size=10)
-        plt.scatter(self.data[:, 1], self.data[:, 2], color='red')
+        plt.scatter(self.data[:, 1], self.data[:, 2], color='blue')
         plt.title('Ground truth path')
 
         report += fig2html(fig_1)
@@ -386,7 +386,7 @@ class TrialAnalysis:
             dist1, closest_node = np.min(dist), self.ref_nodes[np.argmin(dist), 2]
             if np.isnan(dist1):
                 pass
-            elif dist1 < 100:
+            elif int(dist1) < 100:
                 if closest_nodes == [int(start)] and int(closest_node) == int(goal):
                     pass
                 else:

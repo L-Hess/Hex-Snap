@@ -278,58 +278,59 @@ class GroundTruth:
         dat_0 = np.genfromtxt(self.path_0, delimiter=',', skip_header=True)
         dat_1 = np.genfromtxt(self.path_1, delimiter=',', skip_header=True)
 
-        dist = np.nan
         x_log = []
         y_log = []
 
         for i in range(len(dat_0)):
-            frame_n = i
 
-            x = np.nan
-            y = np.nan
+            dist = np.nan
 
             if not np.isnan(dat_0[i, 0]) and not np.isnan(dat_1[i, 0]):
                 dist = distance(dat_0[i, 8], dat_0[i, 9], dat_1[i, 8], dat_1[i, 9])
 
+                if dist <= 50:
+                    x = (dat_0[i, 8] + dat_1[i, 8]) / 2
+                    y = (dat_0[i, 9] + dat_1[i, 9]) / 2
+
+                if x_log != []:
+                    dist_0 = distance(dat_0[i, 8], dat_0[i, 9], x_log[len(x_log) - 1], y_log[len(y_log) - 1])
+                    dist_1 = distance(dat_1[i, 8], dat_1[i, 9], x_log[len(x_log) - 1], y_log[len(y_log) - 1])
+
+                    if dist_0 < dist_1:
+                        x = dat_0[i, 8]
+                        y = dat_0[i, 9]
+
+                    elif dist_0 > dist_1:
+                        x = dat_1[i, 8]
+                        y = dat_1[i, 9]
+
+                    else:
+                        x = (dat_0[i, 8] + dat_1[i, 8]) / 2
+                        y = (dat_0[i, 9] + dat_1[i, 9]) / 2
+
+                else:
+                    x = (dat_0[i, 8] + dat_1[i, 8]) / 2
+                    y = (dat_0[i, 9] + dat_1[i, 9]) / 2
+
             elif not np.isnan(dat_0[i, 0]) and np.isnan(dat_1[i, 0]):
                 x = dat_0[i, 8]
                 y = dat_0[i, 9]
-                dist = np.nan
 
             elif np.isnan(dat_0[i, 0]) and not np.isnan(dat_1[i, 0]):
                 x = dat_1[i, 8]
                 y = dat_1[i, 9]
-                dist = np.nan
 
-            if not np.isnan(dist):
-                x = (dat_0[i, 8] + dat_1[i, 8]) / 2
-                y = (dat_0[i, 9] + dat_0[i, 9]) / 2
-                dist = np.nan
+            else:
+                x = np.nan
+                y = np.nan
 
-            if dist >= 80:
-                dist_0 = distance(dat_0[i, 8], dat_0[i, 9], x_log[len(x_log)], y_log[len(y_log)])
-                dist_1 = distance(dat_1[i, 8], dat_1[i, 9], x_log[len(x_log)], y_log[len(y_log)])
-                if dist_0 < dist_1:
-                    x = dat_0[i, 8]
-                    y = dat_0[i, 9]
-                    dist = np.nan
-
-                elif dist_0 > dist_1:
-                    x = dat_1[i, 8]
-                    y = dat_1[i, 9]
-                    dist = np.nan
-
-                else:
-                    x = (dat_0[i, 8] + dat_1[i, 8]) / 2
-                    y = (dat_0[i, 9] + dat_0[i, 9]) / 2
-                    dist = np.nan
-
-            x_log.append(x)
-            y_log.append(y)
+            if not np.isnan(x):
+                x_log.append(x)
+                y_log.append(y)
 
             time = dat_0[i, 4]
 
-            pos_log_file.write("{}, {}, {}, {}\n".format(frame_n, x, y, time))
+            pos_log_file.write("{}, {}, {}, {}\n".format(i, x, y, time))
 
         return path
 
