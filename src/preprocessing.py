@@ -669,7 +669,7 @@ class TrialCut:
         # Find timstamps in log files
         for i in range(len(self.onsets)):
             on_t = np.floor((3600 * int(self.onsets[i][0:2]) + 60 * int(self.onsets[i][3:5]) + int(self.onsets[i][6:8])) - vid_t)
-            off_t = np.ceil((3600 * int(self.offsets[i][0:2]) + 60 * int(self.offsets[i][3:5]) + int(self.offsets[i][6:8])) - vid_t)
+            off_t = np.floor((3600 * int(self.offsets[i][0:2]) + 60 * int(self.offsets[i][3:5]) + int(self.offsets[i][6:8])) - vid_t)+1.5
 
             on_tf = np.argwhere(self.dat_0[:, 4] == on_t)
             if on_t in self.dat_0[:, 4]:
@@ -680,7 +680,7 @@ class TrialCut:
 
             off_tf = np.argwhere(self.dat_0[:, 4] == off_t)
             if off_t in self.dat_0[:, 4]:
-                off_tf = off_tf[0][0]+1
+                off_tf = off_tf[len(off_tf)-1][0]
             else:
                 off_tf = np.nan
             self.log_offsets.append(off_tf)

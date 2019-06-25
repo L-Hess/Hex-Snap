@@ -386,7 +386,7 @@ class TrialAnalysis:
             dist1, closest_node = np.min(dist), self.ref_nodes[np.argmin(dist), 2]
             if np.isnan(dist1):
                 pass
-            elif int(dist1) < 100:
+            elif int(dist1) < 150:
                 if closest_nodes == [int(start)] and int(closest_node) == int(goal):
                     pass
                 else:
@@ -415,12 +415,10 @@ class TrialAnalysis:
 
         path_length = len(gt_path)
         shortest_path_length = len(nx.shortest_path(mg, start, goal))
-
-        df = pd.read_excel(self.log_path)
-        path = df['Path'].iloc[int(n)]
+        path = self.df['Path'].iloc[int(n)]
 
         # Checks if the tracker finds the same path taken as the experimenters data
-        if path == path_log_str:
+        if str(path) == str(path_log_str):
             correct_path = True
         else:
             correct_path = False
