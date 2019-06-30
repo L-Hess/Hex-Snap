@@ -5,6 +5,8 @@ import cv2
 import os
 import pandas as pd
 import xlrd
+from moviepy.editor import VideoFileClip
+import networkx as nx
 
 
 # Euclidean distance
@@ -23,22 +25,38 @@ def make_directory(pathname, path_str):
             print("Creation of the directory %s failed" % path)
 
 
-# Obtaining the linearized position using simple algebra
-# Maps mouse position to the closest point on the line between the two closest nodes as seen from mouse position
-def lin_pos(x1, y1, x2, y2, x3, y3, z):
-    """Linearized position on basis of the two closest nodes"""
-    x = None
-    y = None
-    if x1 is not None and x2 is not None and y1 is not None and y2 is not None:
-        if x1 == x2:
-            x = x1
-            y = y3
-        else:
-            slope = (y2-y1)/(x2-x1)
-            x = (y3+(1/slope)*x3-y1+slope*x1)/(slope+(1/slope))
-            y = slope*(x-x1)+y1
-        x, y = int(x), int(y)
-    return x, y, z
+def ls_dist(p1, p2, p3):
+    x1, y1 = p1
+    x2, y2 = p2
+    x3, y3 = p3
+
+    px = x2 - x1
+    py = y2 - y1
+
+    norm = px * px + py * py
+
+    u = ((x3 - x1) * px + (y3 - y1) * py) / float(norm)
+
+    if u > 1:
+        u = 1
+    elif u < 0:
+        u = 0
+
+    x = x1 + u * px
+    y = y1 + u * py
+
+    dx = x - x3
+    dy = y - y3
+
+    # Note: If the actual distance does not matter,
+    # if you only want to compare what this function
+    # returns to other results of this function, you
+    # can just return the squared distance instead
+    # (i.e. remove the sqrt) to gain a little performance
+
+    sqr_dist = dx * dx + dy * dy
+
+    return sqr_dist, (x, y)
 
 
 # For time alignment of both videos on basis of the LED light flickering
@@ -49,8 +67,14 @@ class TimeCorrect:
         self.data_path_1 = pkg_resources.resource_filename(pathname, '/data/interim/Position_log_files/{}/pos_log_file_0.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
         self.data_path_2 = pkg_resources.resource_filename(pathname, '/data/interim/Position_log_files/{}/pos_log_file_1.csv'.format(sources[0][len(sources[0])-29:len(sources[0])-10]))
 
-        self.dat_0 = np.genfromtxt(self.data_path_1, delimiter=',', skip_header=False)
-        self.dat_1 = np.genfromtxt(self.data_path_2, delimiter=',', skip_header=False)
+        self.dat_0_load = np.genfromtxt(self.data_path_1, delimiter=',', skip_header=False)
+        self.dat_1_load = np.genfromtxt(self.data_path_2, delimiter=',', skip_header=False)
+
+        self.dat_0 = np.random.rand(len(self.dat_0_load), 5)
+        self.dat_1 = np.random.rand(len(self.dat_1_load), 5)
+
+        self.dat_0[:, :-1] = self.dat_0_load
+        self.dat_1[:, :-1] = self.dat_1_load
 
         self.dat_0f = None
         self.dat_1f = None
@@ -71,33 +95,70 @@ class TimeCorrect:
         peak_diff_0 = np.diff(i_0)
         peak_diff_1 = np.diff(i_1)
 
-        min_it = np.min([len(peak_diff_0),len(peak_diff_1)])
+        # Calculates where in the log-files the LED-state goes from off to on (0 to 1)
+        led_0_peaks = np.diff(led_0)
+        led_1_peaks = np.diff(led_1)
+        i_0 = np.sort(np.append(np.where(led_0_peaks == 1)[0], np.where(led_0_peaks == -1)[0]))
+        i_1 = np.sort(np.append(np.where(led_1_peaks == 1)[0], np.where(led_1_peaks == -1)[0]))
+        peak_diff_0 = np.diff(i_0)
+        peak_diff_1 = np.diff(i_1)
 
-        self.dat_0f = np.full_like(self.dat_0[:peak_diff_0[0] - 1, :], np.nan)
-        self.dat_1f = np.full_like(self.dat_1[:peak_diff_1[0] - 1, :], np.nan)
+        min_it = np.min([len(peak_diff_0), len(peak_diff_1)])
+        dat_0f = np.full((1, 5), np.nan)
+        dat_1f = np.full((1, 5), np.nan)
 
+        time = (peak_diff_0[0] - 1) * 0.5
         for i in range(min_it):
+            self.dat_0[:, 4] = time
+            self.dat_1[:, 4] = time
             if peak_diff_0[i] > peak_diff_1[i]:
-                self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
-                self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
+                dat_0f = np.concatenate((dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
+                dat_1f = np.concatenate((dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
                 if not i == min_it - 1:
                     diff = peak_diff_0[i] - peak_diff_1[i]
-                    add = np.full((diff, 4), np.nan)
-                    self.dat_1f = np.concatenate((self.dat_1f, add), axis=0)
+                    add = np.full((diff, 5), np.nan)
+                    add[:, 4] = time
+                    add[:, 3] = dat_0f[len(dat_1f) - 1, 3]
+                    dat_1f = np.concatenate((dat_1f, add), axis=0)
 
             elif peak_diff_1[i] > peak_diff_0[i]:
-                self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
-                self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
+                dat_1f = np.concatenate((dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
+                dat_0f = np.concatenate((dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
                 if not i == min_it - 1:
                     diff = peak_diff_1[i] - peak_diff_0[i]
-                    add = np.full((diff, 4), np.nan)
-                    self.dat_0f = np.concatenate((self.dat_0f, add), axis=0)
+                    add = np.full((diff, 5), np.nan)
+                    add[:, 4] = time
+                    add[:, 3] = dat_0f[len(dat_0f) - 1, 3]
+                    dat_0f = np.concatenate((dat_0f, add), axis=0)
 
             elif peak_diff_0[i] == peak_diff_1[i]:
-                self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
-                self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
+                dat_0f = np.concatenate((dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
+                dat_1f = np.concatenate((dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
 
-        return self.dat_0f, self.dat_1f
+            time += 0.5
+
+        # Create pandas dataframe for interpolation
+        df0 = pd.DataFrame()
+        df0['x'], df0['y'], df0['frame_n'], df0['LED_state'], df0['time'] = dat_0f[:, 0], dat_0f[:, 1], dat_0f[:,
+                                                                                                        2], dat_0f[:,
+                                                                                                            3], dat_0f[
+                                                                                                                :, 4]
+        df1 = pd.DataFrame()
+        df1['x'], df1['y'], df1['frame_n'], df1['LED_state'], df1['time'] = dat_1f[:, 0], dat_1f[:, 1], dat_1f[:,
+                                                                                                        2], dat_1f[:,
+                                                                                                            3], dat_1f[
+                                                                                                                :, 4]
+        # Interpolate missing x and y values using linear interpolation
+        df0['x'] = df0['x'].interpolate(method='linear', limit=3)
+        df0['y'] = df0['y'].interpolate(method='linear', limit=3)
+        df1['x'] = df1['x'].interpolate(method='linear', limit=3)
+        df1['y'] = df1['y'].interpolate(method='linear', limit=3)
+
+        # Convert back to numpy arrays
+        dat_0f = df0.values
+        dat_1f = df1.values
+
+        return dat_0f, dat_1f
 
 
 class Linearization:
@@ -130,55 +191,116 @@ class Linearization:
         for dat in [self.dat_0, self.dat_1]:
             path = pkg_resources.resource_filename(self.pathname, '/data/interim/linearized_Position_log_files/{}/pos_log_file_lin_{}.csv'.format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
             pos_log_file = open(path, 'w')
-            pos_log_file.write('x, y, frame_n, LED state, rel_pos, closest node, second closest node\n')
+            pos_log_file.write('x, y, frame_n, LED state, time, rel_pos, closest node, second closest node\n')
 
             if n == 0:
-                nodes = self.nodes_top
+                flower_graph = {1: [2, 6],
+                                2: [1, 3],
+                                3: [2, 4, 7],
+                                4: [3, 5],
+                                5: [4, 8],
+                                6: [1, 9, 17],
+                                7: [3, 9, 10],
+                                8: [5, 10, 11],
+                                9: [6, 7, 12],
+                                10: [7, 8, 13],
+                                11: [8, 14],
+                                12: [9, 15, 19],
+                                13: [10, 15, 16],
+                                14: [11, 16],
+                                15: [12, 13],
+                                16: [13, 14],
+                                17: [6, 18],
+                                18: [17, 19],
+                                19: [12, 18], }
+
+                node_positions = {}
+                path_nodes = pkg_resources.resource_filename(self.pathname, 'src/Resources/aligned/corr_node_pos_top.csv')
+                with open(path_nodes, 'r') as npf:
+                    next(npf)
+                    for line in npf:
+                        x, y, nn = map(str.strip, line.split(','))
+                        node_positions[float(nn)] = (float(x), float(y))
+
+                mg = nx.Graph(flower_graph)
+
             if n == 1:
-                nodes = self.nodes_bot
+                flower_graph = {6: [9, 17],
+                                7: [9, 10],
+                                8: [10, 11],
+                                9: [6, 7, 12],
+                                10: [7, 8, 13],
+                                11: [8, 14],
+                                12: [9, 15, 19],
+                                13: [10, 15, 16],
+                                14: [11, 16],
+                                15: [12, 13, 22],
+                                16: [13, 14, 24],
+                                17: [6, 18],
+                                18: [17, 19],
+                                19: [12, 18, 20],
+                                20: [19, 21],
+                                21: [20, 22],
+                                22: [15, 21, 23],
+                                23: [22, 24],
+                                24: [16, 23]}
 
-            for [x, y, z, l] in dat:
+                node_positions = {}
+                path_nodes = pkg_resources.resource_filename(self.pathname,
+                                                             'src/Resources/aligned/corr_node_pos_bot.csv')
+                with open(path_nodes, 'r') as npf:
+                    next(npf)
+                    for line in npf:
+                        x, y, nn = map(str.strip, line.split(','))
+                        node_positions[float(nn)] = (float(x), float(y))
 
-                # Calculate the distance of each mouse position to all nodes
-                dist = distance(x, y, nodes[:, 0], nodes[:, 1])
+                mg = nx.Graph(flower_graph)
 
-                # Finds the closest node and saves its position and node number
-                dist1, node1 = np.min(dist), nodes[np.argmin(dist), 2]
-                x_node_1, y_node_1 = nodes[np.argmin(dist), 0], nodes[np.argmin(dist), 1]
-                if np.isnan(dist1):
-                    node1 = None
-                    x_node_1, y_node_1 = None, None
+            edge_list = list(mg.edges)
+            vertex_list = list(node_positions.keys())
+            distances = np.zeros(len(edge_list))
 
-                # Find the second closest node and save its position and node number
-                dist[np.argmin(dist)] = 1e12
-                dist2, node2 = np.min(dist), nodes[np.argmin(dist), 2]
-                x_node_2, y_node_2 = nodes[np.argmin(dist), 0], nodes[np.argmin(dist), 1]
-                if np.isnan(dist2):
-                    node2 = None
-                    x_node_2, y_node_2 = None, None
-
-                # Find the relative position between both nodes on basis of the linearized position
-                # (see the function lin_pos as earlier defined)
+            for [x, y, z, l, time] in dat:
                 rel_pos = np.nan
-                if not np.isnan(dist1):
-                    nodes_dist = distance(x_node_1, y_node_1, x_node_2, y_node_2)
-                    x_lin, y_lin, z_lin = lin_pos(x_node_1, y_node_1, x_node_2, y_node_2, x, y, z)
-                    lin_dist_1 = distance(x_lin, y_lin, x_node_1, y_node_1)
-                    lin_dist_2 = distance(x_lin, y_lin, x_node_2, y_node_2)
-                    if lin_dist_1 + lin_dist_2 > nodes_dist + 0.2:
-                        rel_pos = -lin_dist_1 / nodes_dist
-                    else:
-                        rel_pos = lin_dist_1 / nodes_dist
+                closest_vertex = None
+                second_vertex = None
 
-                # Correct for cases in which the mouse is 'behind' the node, fix these positions to being on top of
-                # the node itself
-                if rel_pos > 1:
-                    rel_pos = 1
-                if rel_pos < 0:
-                    rel_pos = 0
+                if not np.isnan(x):
+                    # Find closest edge with projection
+                    for i, edge in enumerate(edge_list):
+                        n1 = node_positions[edge[0]]
+                        n2 = node_positions[edge[1]]
+                        d, p4 = ls_dist(n1, n2, (x,y))
+                        distances[i] = d
+                    closest_idx = distances.argmin()
+                    closest_edge = edge_list[closest_idx]
+
+                    # Find closest vertex from projection
+                    v1 = closest_edge[0]
+                    v2 = closest_edge[1]
+                    d1 = distance(node_positions[v1][0], node_positions[v1][1], x, y)
+                    d2 = distance(node_positions[v2][0], node_positions[v2][1], x, y)
+                    vertex_dist = distance(node_positions[v1][0], node_positions[v1][1], node_positions[v2][0], node_positions[v2][1])
+                    if d1 > d2:
+                        closest_vertex = v2
+                        second_vertex = v1
+                        dist = d2
+                    else:
+                        closest_vertex = v1
+                        second_vertex = v2
+                        dist = d1
+
+                    rel_pos = dist/vertex_dist
+
+                    # Correct for cases in which the mouse is 'behind' the node, fix these positions to being on top of
+                    # the node itself
+                    if rel_pos > 1:
+                        rel_pos = 1
+                    if rel_pos < 0:
+                        rel_pos = 0
 
                 # Add the relative position and two closest nodes to the log file
-                pos_log_file.write('{}, {}, {}, {}, {}, {}, {}\n'.format(x, y, z, l, rel_pos, node1, node2))
+                pos_log_file.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(x, y, z, l, time, rel_pos, closest_vertex, second_vertex))
 
             pos_log_file.close()
 
@@ -213,16 +335,16 @@ class GroundTruth:
         for dat in [self.dat_0, self.dat_1]:
             path = pkg_resources.resource_filename(self.pathname, '/data/interim/pos_log_files_gt/{}/pos_log_file_gt_{}.csv'.format(self.sources[0][len(self.sources[0])-29:len(self.sources[0])-10], n))
             pos_log_file = open(path, 'w')
-            pos_log_file.write('x, y, frame_n, LED state, rel_pos, closest node, second closest node, gt_x, gt_y\n')
+            pos_log_file.write('x, y, frame_n, LED state, time, rel_pos, closest node, second closest node, gt_x, gt_y\n')
 
             for k in range(len(dat)):
                 x4, y4 = np.nan, np.nan
                 if not np.isnan(dat[k, 5]):
-                    x1 = self.ref_nodes[int(dat[k, 5]) - 1, 0]
-                    y1 = self.ref_nodes[int(dat[k, 5]) - 1, 1]
-                    x2 = self.ref_nodes[int(dat[k, 6]) - 1, 0]
-                    y2 = self.ref_nodes[int(dat[k, 6]) - 1, 1]
-                    d = dat[k, 4] * distance(x1, y1, x2, y2)
+                    x1 = self.ref_nodes[int(dat[k, 6]) - 1, 0]
+                    y1 = self.ref_nodes[int(dat[k, 6]) - 1, 1]
+                    x2 = self.ref_nodes[int(dat[k, 7]) - 1, 0]
+                    y2 = self.ref_nodes[int(dat[k, 7]) - 1, 1]
+                    d = dat[k, 5] * distance(x1, y1, x2, y2)
 
                     if x1 != x2:
                         slope = (y2 - y1) / (x2 - x1)
@@ -243,7 +365,7 @@ class GroundTruth:
                         elif y1 < y2:
                             y4 = y1 + d
 
-                pos_log_file.write('{}, {}, {}, {}, {}, {}, {}, {}, {}\n'.format(dat[k, 0], dat[k, 1], dat[k, 2], dat[k, 3], dat[k, 4], dat[k, 5], dat[k, 6], x4, y4))
+                pos_log_file.write('{}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n'.format(dat[k, 0], dat[k, 1], dat[k, 2], dat[k, 3], dat[k, 4], dat[k, 5], dat[k, 6], dat[k, 7], x4, y4))
 
             if n == 0:
                 self.path_0 = path
@@ -262,60 +384,64 @@ class GroundTruth:
                                                    self.sources[0][
                                                    len(self.sources[0]) - 29:len(self.sources[0]) - 10]))
         pos_log_file = open(path, 'w')
-        pos_log_file.write('frame_n, x, y, first node, second node\n')
+        pos_log_file.write('frame_n, x, y, time\n')
 
         dat_0 = np.genfromtxt(self.path_0, delimiter=',', skip_header=True)
         dat_1 = np.genfromtxt(self.path_1, delimiter=',', skip_header=True)
 
-        dist = np.nan
-        x = np.nan
-        y = np.nan
         x_log = []
         y_log = []
 
         for i in range(len(dat_0)):
-            frame_n = i
+
+            dist = np.nan
 
             if not np.isnan(dat_0[i, 0]) and not np.isnan(dat_1[i, 0]):
-                dist = distance(dat_0[i, 7], dat_0[i, 8], dat_1[i, 7], dat_1[i, 8])
+                dist = distance(dat_0[i, 8], dat_0[i, 9], dat_1[i, 8], dat_1[i, 9])
 
-            elif not np.isnan(dat_0[i, 0]) and np.isnan(dat_1[i, 0]):
-                x = dat_0[i, 7]
-                y = dat_0[i, 8]
-                dist = np.nan
+                if dist <= 50:
+                    x = (dat_0[i, 8] + dat_1[i, 8]) / 2
+                    y = (dat_0[i, 9] + dat_1[i, 9]) / 2
 
-            elif np.isnan(dat_0[i, 0]) and not np.isnan(dat_1[i, 0]):
-                x = dat_1[i, 7]
-                y = dat_1[i, 8]
-                dist = np.nan
+                if x_log != []:
+                    dist_0 = distance(dat_0[i, 8], dat_0[i, 9], x_log[len(x_log) - 1], y_log[len(y_log) - 1])
+                    dist_1 = distance(dat_1[i, 8], dat_1[i, 9], x_log[len(x_log) - 1], y_log[len(y_log) - 1])
 
-            if not np.isnan(dist):
-                x = (dat_0[i, 7] + dat_1[i, 7]) / 2
-                y = (dat_0[i, 8] + dat_0[i, 8]) / 2
-                dist = np.nan
+                    if dist_0 < dist_1:
+                        x = dat_0[i, 8]
+                        y = dat_0[i, 9]
 
-            if dist >= 80:
-                dist_0 = distance(dat_0[i, 7], dat_0[i, 8], x_log[len(x_log)], y_log[len(y_log)])
-                dist_1 = distance(dat_1[i, 7], dat_1[i, 8], x_log[len(x_log)], y_log[len(y_log)])
-                if dist_0 < dist_1:
-                    x = dat_0[i, 7]
-                    y = dat_0[i, 8]
-                    dist = np.nan
+                    elif dist_0 > dist_1:
+                        x = dat_1[i, 8]
+                        y = dat_1[i, 9]
 
-                elif dist_0 > dist_1:
-                    x = dat_1[i, 7]
-                    y = dat_1[i, 8]
-                    dist = np.nan
+                    else:
+                        x = (dat_0[i, 8] + dat_1[i, 8]) / 2
+                        y = (dat_0[i, 9] + dat_1[i, 9]) / 2
 
                 else:
-                    x = (dat_0[i, 7] + dat_1[i, 7]) / 2
-                    y = (dat_0[i, 8] + dat_0[i, 8]) / 2
-                    dist = np.nan
+                    x = (dat_0[i, 8] + dat_1[i, 8]) / 2
+                    y = (dat_0[i, 9] + dat_1[i, 9]) / 2
 
-            x_log.append(x)
-            y_log.append(y)
+            elif not np.isnan(dat_0[i, 0]) and np.isnan(dat_1[i, 0]):
+                x = dat_0[i, 8]
+                y = dat_0[i, 9]
 
-            pos_log_file.write("{}, {}, {}\n".format(frame_n, x, y))
+            elif np.isnan(dat_0[i, 0]) and not np.isnan(dat_1[i, 0]):
+                x = dat_1[i, 8]
+                y = dat_1[i, 9]
+
+            else:
+                x = np.nan
+                y = np.nan
+
+            if not np.isnan(x):
+                x_log.append(x)
+                y_log.append(y)
+
+            time = dat_0[i, 4]
+
+            pos_log_file.write("{}, {}, {}, {}\n".format(i, x, y, time))
 
         return path
 
@@ -613,7 +739,7 @@ class Homography:
 
 
 class TrialCut:
-    def __init__(self, paths, data):
+    def __init__(self, paths, data, sources):
 
         # Load in all data and the excel file containing the log data of the experiment
         self.path_vid_0 = paths[0]
@@ -629,13 +755,17 @@ class TrialCut:
         self.log_onsets, self.log_offsets = [], []
         self.onsets, self.offsets = [], []
 
+        self.vid = VideoFileClip(sources[0])
+        self.duration = self.vid.duration*15
+        self.vid.reader.close()
+
     def log_data(self):
         """"Find the specific timings of the on- and offsets of trials in the time-aligned log files"""
 
         # Standard video timing (to correct for the normal start of the video)
         # Example: video timestamp = 14:00, onset time = 14:20 --> time in video = 00:20
-        vid_t = (3600 * int(self.path_vid_0[len(self.path_vid_0)-18:len(self.path_vid_0)-16]) + 60 * int(self.path_vid_0[len(self.path_vid_0)-15:len(self.path_vid_0)-13]) + int(
-            self.path_vid_0[len(self.path_vid_0)-12:len(self.path_vid_0)-10])) * 15
+        vid_t = np.floor((3600 * int(self.path_vid_0[len(self.path_vid_0)-18:len(self.path_vid_0)-16]) + 60 * int(self.path_vid_0[len(self.path_vid_0)-15:len(self.path_vid_0)-13]) + int(
+            self.path_vid_0[len(self.path_vid_0)-12:len(self.path_vid_0)-10])))
 
         # Load in the on- and offsets of trials from the log file
         onsets = self.array[:, 2][:]
@@ -649,19 +779,19 @@ class TrialCut:
 
         # Find timstamps in log files
         for i in range(len(self.onsets)):
-            on_t = (3600 * int(self.onsets[i][0:2]) + 60 * int(self.onsets[i][3:5]) + int(self.onsets[i][6:8])) * 15 - vid_t
-            off_t = (3600 * int(self.offsets[i][0:2]) + 60 * int(self.offsets[i][3:5]) + int(self.offsets[i][6:8])) * 15 - vid_t
+            on_t = np.floor((3600 * int(self.onsets[i][0:2]) + 60 * int(self.onsets[i][3:5]) + int(self.onsets[i][6:8])) - vid_t)
+            off_t = np.floor((3600 * int(self.offsets[i][0:2]) + 60 * int(self.offsets[i][3:5]) + int(self.offsets[i][6:8])) - vid_t)+1.5
 
-            on_tf = np.argwhere(self.dat_0 == on_t)
-            if on_t in self.dat_0:
+            on_tf = np.argwhere(self.dat_0[:, 4] == on_t)
+            if on_t in self.dat_0[:, 4]:
                 on_tf = on_tf[0][0]
             else:
                 on_tf = np.nan
             self.log_onsets.append(on_tf)
 
-            off_tf = np.argwhere(self.dat_0 == off_t)
-            if off_t in self.dat_0:
-                off_tf = off_tf[0][0]
+            off_tf = np.argwhere(self.dat_0[:, 4] == off_t)
+            if off_t in self.dat_0[:, 4]:
+                off_tf = off_tf[len(off_tf)-1][0]
             else:
                 off_tf = np.nan
             self.log_offsets.append(off_tf)

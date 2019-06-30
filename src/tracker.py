@@ -4,6 +4,7 @@ import numpy as np
 from collections import deque
 import pkg_resources
 from src.kalman import KalmanFilter
+from matplotlib import pyplot as plt
 
 # Kalman filter cannot be older than 15 frames, otherwise deemed insufficiently informed to predict mouse position
 KF_REGISTRATION_AGE = 15
@@ -100,6 +101,8 @@ class Tracker:
 
         self.largest_areas = np.full(20, 100)
 
+        self.masks = np.arange(15, 10000, 15)
+
     # Making a mask on basis of the input frame
     def make_mask(self, frame, global_threshold=70):
         """Create a new mask on basis of the input frame"""
@@ -182,7 +185,7 @@ class Tracker:
         # minimum of the mouse area, if largest area is below, it is not tracked
         # minimum mouse area is adaptive to the mouse areas already logged in frames before, this greatly
         # enhances tracking when mouse is behind wall or cue because in those cases the kalman filter takes over
-        min_mouse_area = np.mean(self.largest_areas)/1.2
+        min_mouse_area = np.mean(self.largest_areas)/1.4
 
         largest_cnt, largest_area = None, 0
         sum_area = 0

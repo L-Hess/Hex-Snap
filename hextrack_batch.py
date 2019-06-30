@@ -93,7 +93,6 @@ class OfflineHextrack:
 
         # tqdm package used to monitor tracking progress
         pbar = tqdm(range(int(self.duration)))
-
         for i in pbar:
 
             # Grab next frame, stops loop if no new frame is present (happens when all frames in video tracked)
@@ -261,7 +260,7 @@ if __name__ == '__main__':
                     gt_path = groundtruth.gt_stitch()
 
                     # Trial selection and cutout
-                    trialcut = TrialCut(paths, [gt_path_0, gt_path_1, gt_path])
+                    trialcut = TrialCut(paths, [gt_path_0, gt_path_1, gt_path], sources)
                     trialcut.log_data()
                     trialcut.cut(__name__)
                     trialcut.cut_stitch(__name__)
