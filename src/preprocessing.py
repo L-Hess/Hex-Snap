@@ -6,6 +6,8 @@ import os
 import pandas as pd
 import xlrd
 from moviepy.editor import VideoFileClip
+import networkx as nx
+
 
 # Euclidean distance
 def distance(x1, y1, x2, y2):
@@ -23,22 +25,38 @@ def make_directory(pathname, path_str):
             print("Creation of the directory %s failed" % path)
 
 
-# Obtaining the linearized position using simple algebra
-# Maps mouse position to the closest point on the line between the two closest nodes as seen from mouse position
-def lin_pos(x1, y1, x2, y2, x3, y3, z):
-    """Linearized position on basis of the two closest nodes"""
-    x = None
-    y = None
-    if x1 is not None and x2 is not None and y1 is not None and y2 is not None:
-        if x1 == x2:
-            x = x1
-            y = y3
-        else:
-            slope = (y2-y1)/(x2-x1)
-            x = (y3+(1/slope)*x3-y1+slope*x1)/(slope+(1/slope))
-            y = slope*(x-x1)+y1
-        x, y = int(x), int(y)
-    return x, y, z
+def ls_dist(p1, p2, p3):
+    x1, y1 = p1
+    x2, y2 = p2
+    x3, y3 = p3
+
+    px = x2 - x1
+    py = y2 - y1
+
+    norm = px * px + py * py
+
+    u = ((x3 - x1) * px + (y3 - y1) * py) / float(norm)
+
+    if u > 1:
+        u = 1
+    elif u < 0:
+        u = 0
+
+    x = x1 + u * px
+    y = y1 + u * py
+
+    dx = x - x3
+    dy = y - y3
+
+    # Note: If the actual distance does not matter,
+    # if you only want to compare what this function
+    # returns to other results of this function, you
+    # can just return the squared distance instead
+    # (i.e. remove the sqrt) to gain a little performance
+
+    sqr_dist = dx * dx + dy * dy
+
+    return sqr_dist, (x, y)
 
 
 # For time alignment of both videos on basis of the LED light flickering
@@ -144,52 +162,113 @@ class Linearization:
             pos_log_file.write('x, y, frame_n, LED state, time, rel_pos, closest node, second closest node\n')
 
             if n == 0:
-                nodes = self.nodes_top
+                flower_graph = {1: [2, 6],
+                                2: [1, 3],
+                                3: [2, 4, 7],
+                                4: [3, 5],
+                                5: [4, 8],
+                                6: [1, 9, 17],
+                                7: [3, 9, 10],
+                                8: [5, 10, 11],
+                                9: [6, 7, 12],
+                                10: [7, 8, 13],
+                                11: [8, 14],
+                                12: [9, 15, 19],
+                                13: [10, 15, 16],
+                                14: [11, 16],
+                                15: [12, 13],
+                                16: [13, 14],
+                                17: [6, 18],
+                                18: [17, 19],
+                                19: [12, 18], }
+
+                node_positions = {}
+                path_nodes = pkg_resources.resource_filename(self.pathname, 'src/Resources/aligned/corr_node_pos_top.csv')
+                with open(path_nodes, 'r') as npf:
+                    next(npf)
+                    for line in npf:
+                        x, y, nn = map(str.strip, line.split(','))
+                        node_positions[float(nn)] = (float(x), float(y))
+
+                mg = nx.Graph(flower_graph)
+
             if n == 1:
-                nodes = self.nodes_bot
+                flower_graph = {6: [9, 17],
+                                7: [9, 10],
+                                8: [10, 11],
+                                9: [6, 7, 12],
+                                10: [7, 8, 13],
+                                11: [8, 14],
+                                12: [9, 15, 19],
+                                13: [10, 15, 16],
+                                14: [11, 16],
+                                15: [12, 13, 22],
+                                16: [13, 14, 24],
+                                17: [6, 18],
+                                18: [17, 19],
+                                19: [12, 18, 20],
+                                20: [19, 21],
+                                21: [20, 22],
+                                22: [15, 21, 23],
+                                23: [22, 24],
+                                24: [16, 23]}
+
+                node_positions = {}
+                path_nodes = pkg_resources.resource_filename(self.pathname,
+                                                             'src/Resources/aligned/corr_node_pos_bot.csv')
+                with open(path_nodes, 'r') as npf:
+                    next(npf)
+                    for line in npf:
+                        x, y, nn = map(str.strip, line.split(','))
+                        node_positions[float(nn)] = (float(x), float(y))
+
+                mg = nx.Graph(flower_graph)
+
+            edge_list = list(mg.edges)
+            vertex_list = list(node_positions.keys())
+            distances = np.zeros(len(edge_list))
 
             for [x, y, z, l, time] in dat:
-
-                # Calculate the distance of each mouse position to all nodes
-                dist = distance(x, y, nodes[:, 0], nodes[:, 1])
-
-                # Finds the closest node and saves its position and node number
-                dist1, node1 = np.min(dist), nodes[np.argmin(dist), 2]
-                x_node_1, y_node_1 = nodes[np.argmin(dist), 0], nodes[np.argmin(dist), 1]
-                if np.isnan(dist1):
-                    node1 = None
-                    x_node_1, y_node_1 = None, None
-
-                # Find the second closest node and save its position and node number
-                dist[np.argmin(dist)] = 1e12
-                dist2, node2 = np.min(dist), nodes[np.argmin(dist), 2]
-                x_node_2, y_node_2 = nodes[np.argmin(dist), 0], nodes[np.argmin(dist), 1]
-                if np.isnan(dist2):
-                    node2 = None
-                    x_node_2, y_node_2 = None, None
-
-                # Find the relative position between both nodes on basis of the linearized position
-                # (see the function lin_pos as earlier defined)
                 rel_pos = np.nan
-                if not np.isnan(dist1):
-                    nodes_dist = distance(x_node_1, y_node_1, x_node_2, y_node_2)
-                    x_lin, y_lin, z_lin = lin_pos(x_node_1, y_node_1, x_node_2, y_node_2, x, y, z)
-                    lin_dist_1 = distance(x_lin, y_lin, x_node_1, y_node_1)
-                    lin_dist_2 = distance(x_lin, y_lin, x_node_2, y_node_2)
-                    if lin_dist_1 + lin_dist_2 > nodes_dist + 0.2:
-                        rel_pos = -lin_dist_1 / nodes_dist
-                    else:
-                        rel_pos = lin_dist_1 / nodes_dist
+                closest_vertex = None
+                second_vertex = None
 
-                # Correct for cases in which the mouse is 'behind' the node, fix these positions to being on top of
-                # the node itself
-                if rel_pos > 1:
-                    rel_pos = 1
-                if rel_pos < 0:
-                    rel_pos = 0
+                if not np.isnan(x):
+                    # Find closest edge with projection
+                    for i, edge in enumerate(edge_list):
+                        n1 = node_positions[edge[0]]
+                        n2 = node_positions[edge[1]]
+                        d, p4 = ls_dist(n1, n2, (x,y))
+                        distances[i] = d
+                    closest_idx = distances.argmin()
+                    closest_edge = edge_list[closest_idx]
+
+                    # Find closest vertex from projection
+                    v1 = closest_edge[0]
+                    v2 = closest_edge[1]
+                    d1 = distance(node_positions[v1][0], node_positions[v1][1], x, y)
+                    d2 = distance(node_positions[v2][0], node_positions[v2][1], x, y)
+                    vertex_dist = distance(node_positions[v1][0], node_positions[v1][1], node_positions[v2][0], node_positions[v2][1])
+                    if d1 > d2:
+                        closest_vertex = v2
+                        second_vertex = v1
+                        dist = d2
+                    else:
+                        closest_vertex = v1
+                        second_vertex = v2
+                        dist = d1
+
+                    rel_pos = dist/vertex_dist
+
+                    # Correct for cases in which the mouse is 'behind' the node, fix these positions to being on top of
+                    # the node itself
+                    if rel_pos > 1:
+                        rel_pos = 1
+                    if rel_pos < 0:
+                        rel_pos = 0
 
                 # Add the relative position and two closest nodes to the log file
-                pos_log_file.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(x, y, z, l, time, rel_pos, node1, node2))
+                pos_log_file.write('{}, {}, {}, {}, {}, {}, {}, {}\n'.format(x, y, z, l, time, rel_pos, closest_vertex, second_vertex))
 
             pos_log_file.close()
 
