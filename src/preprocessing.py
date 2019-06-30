@@ -95,38 +95,70 @@ class TimeCorrect:
         peak_diff_0 = np.diff(i_0)
         peak_diff_1 = np.diff(i_1)
 
-        min_it = np.min([len(peak_diff_0),len(peak_diff_1)])
+        # Calculates where in the log-files the LED-state goes from off to on (0 to 1)
+        led_0_peaks = np.diff(led_0)
+        led_1_peaks = np.diff(led_1)
+        i_0 = np.sort(np.append(np.where(led_0_peaks == 1)[0], np.where(led_0_peaks == -1)[0]))
+        i_1 = np.sort(np.append(np.where(led_1_peaks == 1)[0], np.where(led_1_peaks == -1)[0]))
+        peak_diff_0 = np.diff(i_0)
+        peak_diff_1 = np.diff(i_1)
 
-        self.dat_0f = np.full((peak_diff_0[0] - 1, 5), np.nan)
-        self.dat_1f = np.full((peak_diff_1[0] - 1, 5), np.nan)
+        min_it = np.min([len(peak_diff_0), len(peak_diff_1)])
+        dat_0f = np.full((1, 5), np.nan)
+        dat_1f = np.full((1, 5), np.nan)
 
         time = (peak_diff_0[0] - 1) * 0.5
         for i in range(min_it):
             self.dat_0[:, 4] = time
             self.dat_1[:, 4] = time
             if peak_diff_0[i] > peak_diff_1[i]:
-                self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
-                self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
+                dat_0f = np.concatenate((dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
+                dat_1f = np.concatenate((dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
                 if not i == min_it - 1:
                     diff = peak_diff_0[i] - peak_diff_1[i]
                     add = np.full((diff, 5), np.nan)
-                    self.dat_1f = np.concatenate((self.dat_1f, add), axis=0)
+                    add[:, 4] = time
+                    add[:, 3] = dat_0f[len(dat_1f) - 1, 3]
+                    dat_1f = np.concatenate((dat_1f, add), axis=0)
 
             elif peak_diff_1[i] > peak_diff_0[i]:
-                self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
-                self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
+                dat_1f = np.concatenate((dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
+                dat_0f = np.concatenate((dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
                 if not i == min_it - 1:
                     diff = peak_diff_1[i] - peak_diff_0[i]
                     add = np.full((diff, 5), np.nan)
-                    self.dat_0f = np.concatenate((self.dat_0f, add), axis=0)
+                    add[:, 4] = time
+                    add[:, 3] = dat_0f[len(dat_0f) - 1, 3]
+                    dat_0f = np.concatenate((dat_0f, add), axis=0)
 
             elif peak_diff_0[i] == peak_diff_1[i]:
-                self.dat_0f = np.concatenate((self.dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
-                self.dat_1f = np.concatenate((self.dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
+                dat_0f = np.concatenate((dat_0f, self.dat_0[i_0[i]:i_0[i + 1]]), axis=0)
+                dat_1f = np.concatenate((dat_1f, self.dat_1[i_1[i]:i_1[i + 1]]), axis=0)
 
             time += 0.5
 
-        return self.dat_0f, self.dat_1f
+        # Create pandas dataframe for interpolation
+        df0 = pd.DataFrame()
+        df0['x'], df0['y'], df0['frame_n'], df0['LED_state'], df0['time'] = dat_0f[:, 0], dat_0f[:, 1], dat_0f[:,
+                                                                                                        2], dat_0f[:,
+                                                                                                            3], dat_0f[
+                                                                                                                :, 4]
+        df1 = pd.DataFrame()
+        df1['x'], df1['y'], df1['frame_n'], df1['LED_state'], df1['time'] = dat_1f[:, 0], dat_1f[:, 1], dat_1f[:,
+                                                                                                        2], dat_1f[:,
+                                                                                                            3], dat_1f[
+                                                                                                                :, 4]
+        # Interpolate missing x and y values using linear interpolation
+        df0['x'] = df0['x'].interpolate(method='linear', limit=3)
+        df0['y'] = df0['y'].interpolate(method='linear', limit=3)
+        df1['x'] = df1['x'].interpolate(method='linear', limit=3)
+        df1['y'] = df1['y'].interpolate(method='linear', limit=3)
+
+        # Convert back to numpy arrays
+        dat_0f = df0.values
+        dat_1f = df1.values
+
+        return dat_0f, dat_1f
 
 
 class Linearization:
