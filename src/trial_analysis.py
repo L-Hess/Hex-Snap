@@ -309,13 +309,13 @@ class TrialAnalysis:
         fig, ax = plt.subplots(1, 2, figsize=(15, 5))
 
         # Create the velocity plot
-        ax[0].plot(velocities)
+        ax[0].plot(velocities, color='k')
         ax[0].set_title('Velocity plot')
         ax[0].set_xlabel('Frame number')
         ax[0].set_ylabel('Velocity (m/s)')
 
         # Create the dwell time plot
-        ax[1].bar(dwell_array, dwell_data)
+        ax[1].bar(dwell_array, dwell_data, color='k')
         ax[1].set_xticks(dwell_array)
         ax[1].set_xlabel('Node')
         ax[1].set_ylabel('Dwell time (s)')
@@ -476,7 +476,7 @@ class TrialAnalysis:
                 velocity = d
 
                 if self.fps:
-                    velocity = d*self.fps/1000
+                    velocity = d*self.fps*8.25 * 10 ** -4
 
                 velocities.append(velocity)
                 velocities_log.append(velocity)
