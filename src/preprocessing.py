@@ -398,7 +398,7 @@ class GroundTruth:
             if not np.isnan(dat_0[i, 0]) and not np.isnan(dat_1[i, 0]):
                 dist = distance(dat_0[i, 8], dat_0[i, 9], dat_1[i, 8], dat_1[i, 9])
 
-                if dist <= 50:
+                if dist <= 400:
                     x = (dat_0[i, 8] + dat_1[i, 8]) / 2
                     y = (dat_0[i, 9] + dat_1[i, 9]) / 2
 

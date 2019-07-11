@@ -185,7 +185,7 @@ class Tracker:
         # minimum of the mouse area, if largest area is below, it is not tracked
         # minimum mouse area is adaptive to the mouse areas already logged in frames before, this greatly
         # enhances tracking when mouse is behind wall or cue because in those cases the kalman filter takes over
-        min_mouse_area = np.mean(self.largest_areas)/1.4
+        min_mouse_area = np.mean(self.largest_areas[len(self.largest_areas)-10:])/2
 
         largest_cnt, largest_area = None, 0
         sum_area = 0
