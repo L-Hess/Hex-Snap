@@ -4,7 +4,6 @@ import logging
 import cv2
 import os
 import pandas as pd
-import xlrd
 from moviepy.editor import VideoFileClip
 import networkx as nx
 

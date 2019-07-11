@@ -386,7 +386,7 @@ class TrialAnalysis:
             dist1, closest_node = np.min(dist), self.ref_nodes[np.argmin(dist), 2]
             if np.isnan(dist1):
                 pass
-            elif int(dist1) < 150:
+            elif int(dist1) < 100:
                 if closest_nodes == [int(start)] and int(closest_node) == int(goal):
                     pass
                 else:
